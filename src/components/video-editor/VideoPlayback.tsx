@@ -1,4 +1,12 @@
-import { Application, Container, Graphics, Rectangle, Sprite, Texture } from "pixi.js";
+import {
+	Application,
+	Container,
+	Graphics,
+	Rectangle,
+	Sprite,
+	Texture,
+	UPDATE_PRIORITY,
+} from "pixi.js";
 import { MotionBlurFilter } from "pixi-filters/motion-blur";
 import { ZoomBlurFilter } from "pixi-filters/zoom-blur";
 import type React from "react";
@@ -187,6 +195,8 @@ type PixiRendererAttempt = {
 	message: string;
 };
 const PIXI_RENDERER_INIT_TIMEOUT_MS = 8_000;
+/** Paused frames rendered after a change: covers async texture uploads and settling layout. */
+const PREVIEW_RENDER_GRACE_FRAMES = 30;
 
 function toRendererErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error ?? "Unknown renderer init error");
@@ -479,6 +489,16 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		const suspendRenderingRef = useRef(suspendRendering);
 		const isSeekingRef = useRef(false);
 		const shouldSnapPausedFrameRef = useRef(false);
+		// While paused the stage only redraws for a short window after something
+		// changes, so an idle editor does not re-run every GPU filter at 60fps.
+		const previewRenderFramesLeftRef = useRef(PREVIEW_RENDER_GRACE_FRAMES);
+		const markPreviewDirty = useCallback(() => {
+			previewRenderFramesLeftRef.current = PREVIEW_RENDER_GRACE_FRAMES;
+		}, []);
+		useEffect(() => {
+			// Any re-render may carry a visual prop change into the Pixi scene.
+			markPreviewDirty();
+		});
 		const lockedVideoDimensionsRef = useRef<{
 			width: number;
 			height: number;
@@ -532,10 +552,11 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		);
 		/** Requests one exact composition after an output-affecting edit while paused. */
 		const requestPausedFrameRefresh = useCallback(() => {
+			markPreviewDirty();
 			if (!isPlayingRef.current) {
 				shouldSnapPausedFrameRef.current = true;
 			}
-		}, []);
+		}, [markPreviewDirty]);
 
 		const initializePixiRenderer = useCallback(
 			async (container: HTMLDivElement): Promise<Application> => {
@@ -979,6 +1000,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		}, []);
 
 		const layoutVideoContent = useCallback(() => {
+			markPreviewDirty();
 			const container = containerRef.current;
 			const app = appRef.current;
 			const videoSprite = videoSpriteRef.current;
@@ -1077,6 +1099,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			padding,
 			applyWebcamBubbleLayout,
 			syncPreviewMotionBlurQuality,
+			markPreviewDirty,
 		]);
 
 		useEffect(() => {
@@ -1759,6 +1782,25 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				app = await initializePixiRenderer(container);
 
 				app.ticker.maxFPS = 60;
+				// Replace Pixi's unconditional per-tick render with an on-demand one.
+				const renderingApp = app;
+				renderingApp.ticker.remove(renderingApp.render, renderingApp);
+				renderingApp.ticker.add(
+					() => {
+						const video = videoRef.current;
+						if (
+							!isPlayingRef.current &&
+							!video?.seeking &&
+							previewRenderFramesLeftRef.current <= 0
+						) {
+							return;
+						}
+						if (!isPlayingRef.current) previewRenderFramesLeftRef.current -= 1;
+						renderingApp.render();
+					},
+					undefined,
+					UPDATE_PRIORITY.LOW,
+				);
 
 				if (!mounted) {
 					destroyPixiApplication(app, "unmounted preview renderer");
@@ -1941,6 +1983,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 				void transport.play().catch((error) => onPlaybackErrorRef.current(String(error)));
 			const handleSeeked = () => {
 				isSeekingRef.current = false;
+				// The texture uploads the new frame on the next render.
+				markPreviewDirty();
 				// A source seek at a contiguous cut must not reset the camera springs.
 				if (!preserveCameraAcrossCut || !isPlayingRef.current)
 					shouldSnapPausedFrameRef.current = true;
@@ -1969,7 +2013,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 
 				videoSpriteRef.current = null;
 			};
-		}, [autoPlay, onPlayStateChange, onTimeUpdate, pixiReady, videoReady]);
+		}, [autoPlay, onPlayStateChange, onTimeUpdate, pixiReady, videoReady, markPreviewDirty]);
 
 		useEffect(() => {
 			if (!pixiReady || !videoReady) return;
@@ -2060,6 +2104,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					return;
 				}
 				lastRenderedContentTimeRef.current = contentTimeMs;
+				markPreviewDirty();
 
 				const target = resolveSceneZoomTarget({
 					zoomRegions: zoomRegionsRef.current,
@@ -2165,7 +2210,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 					app.ticker.remove(ticker);
 				}
 			};
-		}, [pixiReady, videoReady, applyWebcamBubbleLayout]);
+		}, [pixiReady, videoReady, applyWebcamBubbleLayout, markPreviewDirty]);
 
 		useEffect(() => {
 			const overlay = cursorOverlayRef.current;
