@@ -70,6 +70,16 @@ export const FINAL_CUT_SHORTCUTS: FixedShortcut[] = [
 	},
 	{ label: "Zoom Timeline to Fit", display: "Shift + Z", bindings: [{ key: "z", shift: true }] },
 	{
+		label: "Copy / Cut / Paste",
+		display: "⌘ + C / X / V",
+		bindings: [
+			{ key: "c", ctrl: true },
+			{ key: "x", ctrl: true },
+			{ key: "v", ctrl: true },
+		],
+	},
+	{ label: "Duplicate", display: "⌘ + D", bindings: [{ key: "d", ctrl: true }] },
+	{
 		label: "Deselect All",
 		display: "Esc / ⌘ + Shift + A",
 		bindings: [{ key: "escape" }, { key: "a", ctrl: true, shift: true }],
@@ -129,7 +139,8 @@ export const DEFAULT_SHORTCUTS: ShortcutsConfig = {
 	splitClip: { key: "c" },
 	addAnnotation: { key: "a" },
 	addKeyframe: { key: "f" },
-	deleteSelected: { key: "d", ctrl: true },
+	// ⌘D is Duplicate, as in Final Cut Pro and most editors.
+	deleteSelected: { key: "backspace", ctrl: true },
 	playPause: { key: " " },
 };
 
@@ -177,12 +188,16 @@ export function formatBinding(binding: ShortcutBinding, isMac: boolean): string 
 	return parts.join(" + ");
 }
 
+/** Earlier default for deleteSelected, now Duplicate; saved configs drop it. */
+const LEGACY_DELETE_SELECTED: ShortcutBinding = { key: "d", ctrl: true };
+
 export function mergeWithDefaults(partial: Partial<ShortcutsConfig>): ShortcutsConfig {
 	const merged = { ...DEFAULT_SHORTCUTS };
 	for (const action of SHORTCUT_ACTIONS) {
-		if (partial[action]) {
-			merged[action] = partial[action] as ShortcutBinding;
-		}
+		const binding = partial[action];
+		if (!binding) continue;
+		if (action === "deleteSelected" && bindingsEqual(binding, LEGACY_DELETE_SELECTED)) continue;
+		merged[action] = binding as ShortcutBinding;
 	}
 	return merged;
 }

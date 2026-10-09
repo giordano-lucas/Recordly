@@ -21,6 +21,7 @@ import { useFreshRecordingAutoZoom } from "./useFreshRecordingAutoZoom";
 import { useTimelineProjection } from "./useTimelineProjection";
 import { useZoomRegionCommands } from "./useZoomRegionCommands";
 import type { PlayheadClock } from "../state/playheadClock";
+import { useTimelineClipboard } from "./useTimelineClipboard";
 
 type Input = {
 	t: ReturnType<typeof useI18n>["t"];
@@ -214,6 +215,27 @@ export function useTimelineEditingController(input: Input) {
 		setSelectedZoomId: timeline.setSelectedZoomId,
 		nextAnnotationIdRef: input.nextAnnotationIdRef,
 		nextAnnotationZIndexRef: input.nextAnnotationZIndexRef,
+	});
+
+	useTimelineClipboard({
+		isMac: input.isMac,
+		timeline,
+		playheadClock: input.playheadClock,
+		currentTime: input.currentTime,
+		timelineDurationSeconds: projection.timelineDuration,
+		nextClipIdRef: input.nextClipIdRef,
+		nextZoomIdRef: input.nextZoomIdRef,
+		nextAnnotationIdRef: input.nextAnnotationIdRef,
+		nextAnnotationZIndexRef: input.nextAnnotationZIndexRef,
+		nextAudioIdRef: input.nextAudioIdRef,
+		selectClip: clipCommands.handleSelectClip,
+		selectZoom: zoomCommands.handleSelectZoom,
+		selectAnnotation: handleSelectAnnotation,
+		selectAudio: audioCommands.handleSelectAudio,
+		deleteClip: clipCommands.handleClipDelete,
+		deleteZoom: zoomCommands.handleZoomDelete,
+		deleteAnnotation: annotationCommands.handleAnnotationDelete,
+		deleteAudio: audioCommands.handleAudioDelete,
 	});
 
 	useEditorGlobalInteractions({
