@@ -132,6 +132,7 @@ export function EditorShell(props: Props) {
 		clipCommands,
 		audioCommands,
 		annotationCommands,
+		autoBlur,
 		handleSelectAnnotation,
 		handleAutoSuggestZoomsConsumed,
 	} = editing;
@@ -385,6 +386,7 @@ export function EditorShell(props: Props) {
 						playback={playback}
 						zoomCommands={zoomCommands}
 						annotationCommands={annotationCommands}
+						autoBlur={autoBlur}
 						effectiveCursorTelemetry={cursor.effectiveCursorTelemetry}
 						effectiveShowCursor={effectiveShowCursor}
 						isCropped={ui.isCropped}

@@ -22,6 +22,7 @@ import { useTimelineProjection } from "./useTimelineProjection";
 import { useZoomRegionCommands } from "./useZoomRegionCommands";
 import type { PlayheadClock } from "../state/playheadClock";
 import { useTimelineClipboard } from "./useTimelineClipboard";
+import { useAutoBlurSecrets } from "./useAutoBlurSecrets";
 
 type Input = {
 	t: ReturnType<typeof useI18n>["t"];
@@ -217,6 +218,14 @@ export function useTimelineEditingController(input: Input) {
 		nextAnnotationZIndexRef: input.nextAnnotationZIndexRef,
 	});
 
+	const autoBlur = useAutoBlurSecrets({
+		sourcePath: input.currentSourcePath,
+		timeline,
+		cropRegion: input.appearance.cropRegion,
+		nextAnnotationIdRef: input.nextAnnotationIdRef,
+		nextAnnotationZIndexRef: input.nextAnnotationZIndexRef,
+	});
+
 	useTimelineClipboard({
 		isMac: input.isMac,
 		timeline,
@@ -258,6 +267,7 @@ export function useTimelineEditingController(input: Input) {
 		clipCommands,
 		audioCommands,
 		annotationCommands,
+		autoBlur,
 		handleSelectAnnotation,
 		handleAutoSuggestZoomsConsumed: freshZoom.handleAutoSuggestZoomsConsumed,
 	};

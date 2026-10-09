@@ -2,6 +2,7 @@ export const SHORTCUT_ACTIONS = [
 	"addZoom",
 	"splitClip",
 	"addAnnotation",
+	"addBlur",
 	"addKeyframe",
 	"deleteSelected",
 	"playPause",
@@ -149,6 +150,7 @@ export const DEFAULT_SHORTCUTS: ShortcutsConfig = {
 	addZoom: { key: "z" },
 	splitClip: { key: "c" },
 	addAnnotation: { key: "a" },
+	addBlur: { key: "b" },
 	addKeyframe: { key: "f" },
 	// ⌘D is Duplicate, as in Final Cut Pro and most editors.
 	deleteSelected: { key: "backspace", ctrl: true },
@@ -159,6 +161,7 @@ export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
 	addZoom: "Add Zoom",
 	splitClip: "Split Clip",
 	addAnnotation: "Add Annotation",
+	addBlur: "Add Blur",
 	addKeyframe: "Add Keyframe",
 	deleteSelected: "Delete Selected",
 	playPause: "Play / Pause",

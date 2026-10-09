@@ -10,6 +10,7 @@ import { useShortcuts } from "@/contexts/ShortcutsContext";
 import { fromFileUrl } from "../projectPersistence";
 import type {
 	AnnotationRegion,
+	AnnotationType,
 	AudioRegion,
 	CaptionCue,
 	ClipRegion,
@@ -64,7 +65,7 @@ export interface TimelineEditorProps {
 	selectedClipId?: string | null;
 	onSelectClip?: (id: string | null) => void;
 	annotationRegions?: AnnotationRegion[];
-	onAnnotationAdded?: (span: Span, trackIndex?: number) => void;
+	onAnnotationAdded?: (span: Span, trackIndex?: number, type?: AnnotationType) => void;
 	onAnnotationSpanChange?: (id: string, span: Span, trackIndex?: number) => void;
 	onAnnotationDelete?: (id: string) => void;
 	selectedAnnotationId?: string | null;
@@ -115,7 +116,7 @@ export interface TimelineEditorHandle {
 	addZoom: () => void;
 	suggestZooms: () => void;
 	splitClip: () => void;
-	addAnnotation: (trackIndex?: number) => void;
+	addAnnotation: (trackIndex?: number, type?: AnnotationType) => void;
 	addAudio: (trackIndex?: number) => Promise<void>;
 	keyframes: { id: string; time: number }[];
 }

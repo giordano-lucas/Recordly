@@ -23,6 +23,7 @@ import {
 	setWindowsSystemAudioPath,
 	windowsCaptureProcess,
 } from "./state";
+import { registerSensitiveTextHandlers } from "./register/sensitiveText";
 
 export { cleanupAllExportStreams } from "./export/exportStream";
 export { cleanupNativeVideoExportSessions } from "./export/native-video";
@@ -72,5 +73,6 @@ export function registerIpcHandlers(
 	registerCaptionHandlers();
 	registerCloudShareHandlers();
 	registerProjectHandlers();
+	registerSensitiveTextHandlers();
 	registerSettingsHandlers();
 }
