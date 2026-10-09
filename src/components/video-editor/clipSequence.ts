@@ -1,3 +1,4 @@
+import { planClipSplit } from "./clipSplit";
 import { type ClipRegion, getClipSourceStartMs, sortClipRegions } from "./types";
 
 /** Primary footage is a sequence. Source in-points survive every ripple edit. */
@@ -112,4 +113,32 @@ export function rippleRegions<T extends { startMs: number; endMs: number }>(
 		const endMs = Math.max(...retainedSpans.map((span) => span.endMs));
 		return [{ ...region, startMs, endMs }];
 	});
+}
+
+/**
+ * Removes the timeline span [inMs, outMs) from the primary storyline, splitting
+ * clips at both edges. `before` is the split sequence at unchanged positions;
+ * ripple connected regions from it, since split halves get new ids.
+ */
+export function removeClipRange(
+	clips: ClipRegion[],
+	inMs: number,
+	outMs: number,
+	createId: () => string,
+): { before: ClipRegion[]; after: ClipRegion[] } | null {
+	const start = Math.round(Math.min(inMs, outMs));
+	const end = Math.round(Math.max(inMs, outMs));
+	if (end <= start) return null;
+	let before = clips;
+	for (const edge of [start, end]) {
+		const split = planClipSplit({ clipRegions: before, splitMs: edge, createId });
+		if (!split) continue;
+		before = before.flatMap((clip) =>
+			clip.id === split.targetId ? [split.left, split.right] : [clip],
+		);
+	}
+	before = sortClipRegions(before);
+	const kept = before.filter((clip) => clip.endMs <= start || clip.startMs >= end);
+	if (kept.length === before.length) return null;
+	return { before, after: packClipSequence(kept) };
 }

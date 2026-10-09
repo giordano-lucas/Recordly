@@ -68,6 +68,17 @@ export const FINAL_CUT_SHORTCUTS: FixedShortcut[] = [
 			{ key: "-", ctrl: true },
 		],
 	},
+	{
+		label: "Mark Range In / Out",
+		display: "I / O",
+		bindings: [{ key: "i" }, { key: "o" }],
+	},
+	{
+		label: "Delete Range (with I/O set)",
+		display: "⌫",
+		bindings: [],
+	},
+	{ label: "Clear Range", display: "⌥ + X", bindings: [{ key: "x", alt: true }] },
 	{ label: "Zoom Timeline to Fit", display: "Shift + Z", bindings: [{ key: "z", shift: true }] },
 	{
 		label: "Copy / Cut / Paste",

@@ -4,10 +4,12 @@ import {
 	reorderClipSequence,
 	mapClipSequenceTime,
 	packClipSequence,
+	removeClipRange,
 	rippleRegionAnchors,
 	rippleRegions,
 } from "./clipSequence";
 import { changeClipSpan } from "./clipSpanChange";
+import type { ClipRegion } from "./types";
 
 const clips = [
 	{ id: "a", startMs: 0, endMs: 2800, speed: 1 },
@@ -129,4 +131,39 @@ it("reveals footage on a clip's left edge without changing sequence order", () =
 	expect(rippleRegions([{ startMs: 2200, endMs: 2600 }], before, after)).toEqual([
 		{ startMs: 5200, endMs: 5600 },
 	]);
+});
+
+describe("removeClipRange", () => {
+	it("cuts a span across two clips and closes the gap", () => {
+		let next = 1;
+		const sequence: ClipRegion[] = [
+			{ id: "a", startMs: 0, endMs: 3000, sourceStartMs: 0, speed: 1 },
+			{ id: "b", startMs: 3000, endMs: 8000, sourceStartMs: 5000, speed: 1 },
+		];
+		const result = removeClipRange(sequence, 2000, 4000, () => `clip-${next++}`);
+		expect(
+			result?.after.map(({ startMs, endMs, sourceStartMs }) => [
+				startMs,
+				endMs,
+				sourceStartMs,
+			]),
+		).toEqual([
+			[0, 2000, 0],
+			[2000, 6000, 6000],
+		]);
+		expect(
+			rippleRegions([{ startMs: 5000, endMs: 5500 }], result!.before, result!.after),
+		).toEqual([{ startMs: 3000, endMs: 3500 }]);
+	});
+
+	it("does nothing for an empty range", () => {
+		expect(
+			removeClipRange(
+				[{ id: "a", startMs: 0, endMs: 3000, speed: 1 }],
+				1000,
+				1000,
+				() => "x",
+			),
+		).toBeNull();
+	});
 });

@@ -25,7 +25,11 @@ import TimelineWrapper from "./components/wrapper/TimelineWrapper";
 import { calculateTimelineScale } from "./core/time";
 import type { ClipSequenceSpan } from "./core/timelineTypes";
 import { useTimelineAudioPeaks } from "./hooks/useTimelineAudioPeaks";
-import { useFinalCutShortcuts } from "./hooks/useFinalCutShortcuts";
+import {
+	type RangeSelection,
+	resolveRangeSelection,
+	useFinalCutShortcuts,
+} from "./hooks/useFinalCutShortcuts";
 import { useTimelineEditorRuntime } from "./hooks/useTimelineEditorRuntime";
 import { useTimelineRange } from "./hooks/useTimelineRange";
 import {
@@ -54,6 +58,8 @@ export interface TimelineEditorProps {
 	clipRegions?: ClipRegion[];
 	onClipSplit?: (splitMs: number) => void;
 	onClipSpanChange?: (id: string, span: ClipSequenceSpan) => void;
+	/** Removes [inMs, outMs) from the storyline; returns false when nothing was removed. */
+	onRemoveRange?: (inMs: number, outMs: number) => boolean;
 	onClipDelete?: (id: string) => void;
 	selectedClipId?: string | null;
 	onSelectClip?: (id: string | null) => void;
@@ -138,6 +144,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 			onClipSplit,
 			onClipSpanChange,
 			onClipDelete,
+			onRemoveRange,
 			selectedClipId,
 			onSelectClip,
 			annotationRegions = [],
@@ -406,6 +413,12 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 			isTimelineFocusedRef,
 		});
 
+		const [rangeSelection, setRangeSelection] = useState<RangeSelection | null>(null);
+		const resolvedRangeSelection = useMemo(
+			() => resolveRangeSelection(rangeSelection, totalMs),
+			[rangeSelection, totalMs],
+		);
+
 		useFinalCutShortcuts({
 			isMac,
 			enabled: !isDragging,
@@ -425,7 +438,11 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 			onDeselectAll: () => {
 				clearSelectedBlocks();
 				setSelectedKeyframeId(null);
+				setRangeSelection(null);
 			},
+			rangeSelection,
+			setRangeSelection,
+			onRemoveRange,
 		});
 
 		if (!videoDuration || videoDuration === 0) {
@@ -512,6 +529,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 							items={timelineItems}
 							videoDurationMs={totalMs}
 							currentTimeMs={currentTimeMs}
+							rangeSelection={resolvedRangeSelection}
 							onSeek={onSeek}
 							onAddZoomAtMs={addZoomAtMs}
 							canPlaceZoomAtMs={canPlaceZoomAtMs}

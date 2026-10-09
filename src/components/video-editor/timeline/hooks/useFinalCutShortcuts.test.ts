@@ -3,7 +3,9 @@ import type { ClipRegion, ZoomRegion } from "../../types";
 import {
 	collectEditPoints,
 	findAdjacentEditPoint,
+	markRangeEdge,
 	resolveFinalCutCommand,
+	resolveRangeSelection,
 	stepFrames,
 	zoomTimelineRange,
 } from "./useFinalCutShortcuts";
@@ -119,5 +121,33 @@ describe("stepFrames", () => {
 		let timeMs = 0;
 		for (let step = 0; step < 18; step += 1) timeMs = Math.round(stepFrames(timeMs, 10));
 		expect(timeMs).toBe(3000);
+	});
+});
+
+describe("range selection", () => {
+	it("maps I, O and Option-X", () => {
+		expect(resolveFinalCutCommand(key("i"), true)).toEqual({ type: "mark", edge: "in" });
+		expect(resolveFinalCutCommand(key("o"), true)).toEqual({ type: "mark", edge: "out" });
+		expect(resolveFinalCutCommand(key("≈", { altKey: true }, "KeyX"), true)).toEqual({
+			type: "clear-range",
+		});
+	});
+
+	it("runs an in point alone to the end and an out point alone from the start", () => {
+		expect(resolveRangeSelection({ inMs: 2000, outMs: null }, 9000)).toEqual({
+			startMs: 2000,
+			endMs: 9000,
+		});
+		expect(resolveRangeSelection({ inMs: null, outMs: 4000 }, 9000)).toEqual({
+			startMs: 0,
+			endMs: 4000,
+		});
+	});
+
+	it("drops the opposite edge when marking past it", () => {
+		const range = markRangeEdge({ inMs: 1000, outMs: 3000 }, "in", 5000);
+		expect(range).toEqual({ inMs: 5000, outMs: null });
+		expect(markRangeEdge(range, "out", 7000)).toEqual({ inMs: 5000, outMs: 7000 });
+		expect(markRangeEdge(range, "out", 4000)).toEqual({ inMs: null, outMs: 4000 });
 	});
 });

@@ -23,7 +23,39 @@ export type FinalCutCommand =
 	| { type: "go-to"; edge: "start" | "end" }
 	| { type: "trim-to-playhead"; edge: "start" | "end" }
 	| { type: "zoom-timeline"; zoom: "in" | "out" | "fit" }
-	| { type: "deselect" };
+	| { type: "deselect" }
+	| { type: "mark"; edge: "in" | "out" }
+	| { type: "clear-range" };
+
+/** Final Cut style range: an in point alone runs to the end, an out point alone from the start. */
+export interface RangeSelection {
+	inMs: number | null;
+	outMs: number | null;
+}
+
+export function resolveRangeSelection(
+	selection: RangeSelection | null,
+	totalMs: number,
+): { startMs: number; endMs: number } | null {
+	if (!selection || (selection.inMs === null && selection.outMs === null)) return null;
+	const startMs = Math.max(0, selection.inMs ?? 0);
+	const endMs = Math.min(totalMs, selection.outMs ?? totalMs);
+	return endMs > startMs ? { startMs, endMs } : null;
+}
+
+/** Marking one edge past the other drops the other edge, as in Final Cut Pro. */
+export function markRangeEdge(
+	selection: RangeSelection | null,
+	edge: "in" | "out",
+	timeMs: number,
+): RangeSelection {
+	if (edge === "in") {
+		const outMs = selection?.outMs ?? null;
+		return { inMs: timeMs, outMs: outMs !== null && outMs > timeMs ? outMs : null };
+	}
+	const inMs = selection?.inMs ?? null;
+	return { inMs: inMs !== null && inMs < timeMs ? inMs : null, outMs: timeMs };
+}
 
 /**
  * Maps a keydown to a Final Cut Pro default binding. Letters match the typed
@@ -48,6 +80,10 @@ export function resolveFinalCutCommand(
 		return { type: "zoom-timeline", zoom: "out" };
 	}
 	if (primary && event.shiftKey && !event.altKey && key === "a") return { type: "deselect" };
+	// Option turns X into "≈" on macOS layouts, so match the physical key.
+	if (event.altKey && !primary && !event.shiftKey && event.code === "KeyX") {
+		return { type: "clear-range" };
+	}
 	if (
 		event.altKey &&
 		!primary &&
@@ -78,6 +114,9 @@ export function resolveFinalCutCommand(
 			return event.shiftKey ? null : { type: "deselect" };
 	}
 	if (event.shiftKey && key === "z") return { type: "zoom-timeline", zoom: "fit" };
+	if (!event.shiftKey && (key === "i" || key === "o")) {
+		return { type: "mark", edge: key === "i" ? "in" : "out" };
+	}
 	return null;
 }
 
@@ -176,6 +215,9 @@ interface UseFinalCutShortcutsParams {
 	onBlade: () => void;
 	onClipSpanChange?: (id: string, span: ClipSequenceSpan) => void;
 	onDeselectAll: () => void;
+	rangeSelection: RangeSelection | null;
+	setRangeSelection: Dispatch<SetStateAction<RangeSelection | null>>;
+	onRemoveRange?: (inMs: number, outMs: number) => boolean;
 }
 
 /**
@@ -261,11 +303,38 @@ export function useFinalCutShortcuts(params: UseFinalCutShortcutsParams) {
 				case "deselect":
 					p.onDeselectAll();
 					break;
+				case "mark":
+					p.setRangeSelection((current) => markRangeEdge(current, command.edge, nowMs));
+					break;
+				case "clear-range":
+					if (!p.rangeSelection) return;
+					p.setRangeSelection(null);
+					break;
 			}
 			event.preventDefault();
 		};
 
+		// Capture phase: with a range marked, Delete removes the range instead of
+		// the selected item (the item handler runs on bubble and skips handled keys).
+		const handleRangeDelete = (event: KeyboardEvent) => {
+			const p = paramsRef.current;
+			if (!p.enabled || event.defaultPrevented || event.isComposing) return;
+			if (event.key !== "Delete" && event.key !== "Backspace") return;
+			if (event.altKey || event.shiftKey || event.ctrlKey) return;
+			if (isShortcutBlockedTarget(event.target)) return;
+			const range = resolveRangeSelection(p.rangeSelection, p.totalMs);
+			if (!range || !p.onRemoveRange) return;
+			event.preventDefault();
+			if (!p.onRemoveRange(range.startMs, range.endMs)) return;
+			p.setRangeSelection(null);
+			p.onSeek?.(range.startMs / 1000);
+		};
+
+		window.addEventListener("keydown", handleRangeDelete, { capture: true });
 		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
+		return () => {
+			window.removeEventListener("keydown", handleRangeDelete, { capture: true });
+			window.removeEventListener("keydown", handleKeyDown);
+		};
 	}, [playheadClock]);
 }
