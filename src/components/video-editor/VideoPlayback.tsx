@@ -237,6 +237,8 @@ interface VideoPlaybackProps {
 	currentTime: number;
 	onPlayStateChange: (playing: boolean) => void;
 	onError: (error: string) => void;
+	/** The GPU dropped the preview's WebGL context; the owner should remount the preview. */
+	onRendererLost?: () => void;
 	wallpaper?: string;
 	zoomRegions: ZoomRegion[];
 	selectedZoomId: string | null;
@@ -318,6 +320,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			autoPlay = false,
 			onDurationChange,
 			onPreviewReadyChange,
+			onRendererLost,
 			onTimeUpdate,
 			currentTime: committedTimelineTime,
 			clipRegions,
@@ -450,6 +453,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		const clipRegionsRef = useRef(clipRegions);
 		const clipPlaybackRef = useRef<ReturnType<typeof createClipPlayback> | null>(null);
 		const onPlaybackErrorRef = useRef(onError);
+		const onRendererLostRef = useRef(onRendererLost);
+		onRendererLostRef.current = onRendererLost;
 		const timelineTimeRef = useRef(timelineTime);
 		useEffect(() => {
 			onPlaybackErrorRef.current = onError;
@@ -1765,6 +1770,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			if (!container) return;
 
 			let mounted = true;
+			let removeContextLostListener: (() => void) | null = null;
 			let app: Application | null = null;
 
 			(async () => {
@@ -1809,6 +1815,11 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 
 				appRef.current = app;
 				container.appendChild(app.canvas);
+				const canvas = app.canvas;
+				const handleContextLost = () => onRendererLostRef.current?.();
+				canvas.addEventListener("webglcontextlost", handleContextLost);
+				removeContextLostListener = () =>
+					canvas.removeEventListener("webglcontextlost", handleContextLost);
 
 				// Camera container - this will be scaled/positioned for zoom
 				const cameraContainer = new Container();
@@ -1878,6 +1889,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 
 			return () => {
 				mounted = false;
+				removeContextLostListener?.();
 				setPixiReady(false);
 				if (cursorOverlayRef.current) {
 					cursorOverlayRef.current.destroy();

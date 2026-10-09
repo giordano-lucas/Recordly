@@ -41,7 +41,6 @@ type Input = {
 	captionSidecarPayload?: Parameters<typeof useExportRunner>[0]["captionSidecarPayload"];
 	experimentalNvidiaCudaExport: boolean;
 	nvidiaCudaExportAvailable: boolean;
-	remountPreview: () => void;
 };
 
 export function useEditorExportController(input: Input) {
@@ -63,7 +62,6 @@ export function useEditorExportController(input: Input) {
 		captionSidecarPayload: input.captionSidecarPayload,
 		experimentalNvidiaCudaExport: input.experimentalNvidiaCudaExport,
 		nvidiaCudaExportAvailable: input.nvidiaCudaExportAvailable,
-		remountPreview: input.remountPreview,
 	});
 	const dialogActions = useExportDialogActions({
 		videoPath: input.videoPath,

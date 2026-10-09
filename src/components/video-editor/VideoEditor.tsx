@@ -70,9 +70,7 @@ export default function VideoEditor() {
 		setAspectRatio,
 		activeEffectSection,
 		setActiveEffectSection,
-		setPreviewVersion,
 		isPreviewReady,
-		setIsPreviewReady,
 		setAutoSuggestZoomsTrigger,
 		videoPlaybackRef,
 		projectNameInputRef,
@@ -179,11 +177,6 @@ export default function VideoEditor() {
 		setShowCursor(nextShowCursor);
 	}, []);
 
-	const remountPreview = useCallback(() => {
-		setIsPreviewReady(false);
-		setPreviewVersion((version) => version + 1);
-	}, []);
-
 	useEffect(() => {
 		return () => {
 			exportRunIdRef.current += 1;
@@ -260,7 +253,6 @@ export default function VideoEditor() {
 		applySessionPresentation,
 		refreshProjectLibrary,
 		captureProjectThumbnail,
-		remountPreview,
 	});
 	const {
 		snapshot: { currentSourcePath },
@@ -343,7 +335,6 @@ export default function VideoEditor() {
 		captionSidecarPayload,
 		experimentalNvidiaCudaExport,
 		nvidiaCudaExportAvailable,
-		remountPreview,
 	});
 	const previewAspectRatioValue = getAspectRatioValue(
 		aspectRatio,

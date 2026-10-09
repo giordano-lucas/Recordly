@@ -34,7 +34,6 @@ export type ExportRunnerInput = {
 	captionSidecarPayload?: PendingExportSave["captionSidecar"];
 	experimentalNvidiaCudaExport: boolean;
 	nvidiaCudaExportAvailable: boolean;
-	remountPreview: () => void;
 };
 
 export function showExportErrorToast(message: string) {

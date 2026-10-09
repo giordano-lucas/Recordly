@@ -55,7 +55,7 @@ export function useProjectOpenActions({
 	const confirmReplaceSourceWithUnsavedChanges = useCallback(
 		async (_actionLabel: string) => {
 			if (!hasUnsavedChanges) return true;
-			return saveProject(false, { remountPreviewAfterSave: false });
+			return saveProject(false);
 		},
 		[hasUnsavedChanges, saveProject],
 	);
@@ -180,10 +180,7 @@ export function useProjectOpenActions({
 		project.setProjectBrowserOpen(true);
 		try {
 			if (project.videoPath && !project.error) {
-				await saveProject(false, {
-					remountPreviewAfterSave: false,
-					refreshLibraryAfterSave: false,
-				});
+				await saveProject(false, { refreshLibraryAfterSave: false });
 			}
 		} finally {
 			await refreshProjectLibrary();

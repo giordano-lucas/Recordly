@@ -10,7 +10,6 @@ const PROJECT_AUTOSAVE_DELAY_MS = 500;
 
 type SaveProjectOptions = {
 	silent?: boolean;
-	remountPreviewAfterSave?: boolean;
 	refreshLibraryAfterSave?: boolean;
 	captureThumbnail?: boolean;
 };
@@ -28,7 +27,6 @@ type UseProjectSaveActionsInput = {
 	resolveProjectSaveDialog: (saved: boolean) => void;
 	captureProjectThumbnail: () => Promise<string | null>;
 	refreshProjectLibrary: () => Promise<void>;
-	remountPreview: () => void;
 };
 
 export function useProjectSaveActions({
@@ -44,7 +42,6 @@ export function useProjectSaveActions({
 	resolveProjectSaveDialog,
 	captureProjectThumbnail,
 	refreshProjectLibrary,
-	remountPreview,
 }: UseProjectSaveActionsInput) {
 	const {
 		currentProjectPath,
@@ -95,7 +92,6 @@ export function useProjectSaveActions({
 
 				const captureThumbnail = options?.captureThumbnail ?? true;
 				const refreshLibrary = options?.refreshLibraryAfterSave ?? true;
-				const remount = options?.remountPreviewAfterSave ?? true;
 				try {
 					const projectData =
 						currentProjectSnapshot?.videoPath === currentSourcePath
@@ -154,8 +150,6 @@ export function useProjectSaveActions({
 				} catch (error) {
 					toast.error(`Could not save project: ${getErrorMessage(error)}`);
 					return false;
-				} finally {
-					if (remount) remountPreview();
 				}
 			});
 		},
@@ -172,7 +166,6 @@ export function useProjectSaveActions({
 			projectDisplayName,
 			captureProjectThumbnail,
 			refreshProjectLibrary,
-			remountPreview,
 		],
 	);
 
@@ -192,7 +185,6 @@ export function useProjectSaveActions({
 			autosaveTimeoutRef.current = null;
 			void saveProject(false, {
 				silent: true,
-				remountPreviewAfterSave: false,
 				refreshLibraryAfterSave: false,
 				captureThumbnail: false,
 			});
@@ -215,65 +207,61 @@ export function useProjectSaveActions({
 			clearPendingAutosave();
 			return queueSave(async () => {
 				if (activeSourceRef.current !== currentSourcePath) return false;
-				try {
-					const projectData =
-						currentProjectSnapshot?.videoPath === currentSourcePath
-							? currentProjectSnapshot
-							: createProjectData(
-									currentSourcePath,
-									currentPersistedEditorState,
-									lastSavedSnapshot?.projectId ?? null,
-								);
-					const previousPath = activePathRef.current;
-					const result = await window.electronAPI.saveProjectFileNamed(
-						projectData,
-						trimmedName,
-						await captureProjectThumbnail(),
-						mode,
-					);
-					if (result.canceled) {
-						toast.info("Project save canceled");
-						return false;
-					}
-					if (!result.success) {
-						toast.error(result.message || "Failed to save project");
-						return false;
-					}
-					if (activeSourceRef.current !== currentSourcePath) return true;
-					if (
-						mode === "rename" &&
-						previousPath &&
-						result.path &&
-						previousPath !== result.path
-					) {
-						try {
-							moveProjectFolderReferences(previousPath, result.path);
-							moveProjectShareLink(previousPath, result.path);
-						} catch {
-							toast.error(
-								"Project renamed, but library preferences could not be updated",
+				const projectData =
+					currentProjectSnapshot?.videoPath === currentSourcePath
+						? currentProjectSnapshot
+						: createProjectData(
+								currentSourcePath,
+								currentPersistedEditorState,
+								lastSavedSnapshot?.projectId ?? null,
 							);
-						}
-					}
-					if (result.path) {
-						activePathRef.current = result.path;
-						setCurrentProjectPath(result.path);
-					}
-					setLastSavedSnapshot(
-						cloneStructured(
-							createProjectData(
-								projectData.videoPath,
-								projectData.editor,
-								result.projectId ?? projectData.projectId ?? null,
-							),
-						),
-					);
-					await refreshProjectLibrary();
-
-					return true;
-				} finally {
-					remountPreview();
+				const previousPath = activePathRef.current;
+				const result = await window.electronAPI.saveProjectFileNamed(
+					projectData,
+					trimmedName,
+					await captureProjectThumbnail(),
+					mode,
+				);
+				if (result.canceled) {
+					toast.info("Project save canceled");
+					return false;
 				}
+				if (!result.success) {
+					toast.error(result.message || "Failed to save project");
+					return false;
+				}
+				if (activeSourceRef.current !== currentSourcePath) return true;
+				if (
+					mode === "rename" &&
+					previousPath &&
+					result.path &&
+					previousPath !== result.path
+				) {
+					try {
+						moveProjectFolderReferences(previousPath, result.path);
+						moveProjectShareLink(previousPath, result.path);
+					} catch {
+						toast.error(
+							"Project renamed, but library preferences could not be updated",
+						);
+					}
+				}
+				if (result.path) {
+					activePathRef.current = result.path;
+					setCurrentProjectPath(result.path);
+				}
+				setLastSavedSnapshot(
+					cloneStructured(
+						createProjectData(
+							projectData.videoPath,
+							projectData.editor,
+							result.projectId ?? projectData.projectId ?? null,
+						),
+					),
+				);
+				await refreshProjectLibrary();
+
+				return true;
 			});
 		},
 		[
@@ -287,7 +275,6 @@ export function useProjectSaveActions({
 			setLastSavedSnapshot,
 			captureProjectThumbnail,
 			refreshProjectLibrary,
-			remountPreview,
 		],
 	);
 
