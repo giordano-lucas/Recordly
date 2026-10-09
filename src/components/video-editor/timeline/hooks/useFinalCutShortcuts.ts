@@ -81,6 +81,14 @@ export function resolveFinalCutCommand(
 	return null;
 }
 
+/**
+ * Steps along the frame grid. The playhead is read in whole milliseconds, so
+ * adding a frame to it directly would drift a third of a millisecond per step.
+ */
+export function stepFrames(timeMs: number, frames: number): number {
+	return (Math.round(timeMs / FRAME_STEP_MS) + frames) * FRAME_STEP_MS;
+}
+
 /** Sorted, de-duplicated boundaries of clips, zooms and annotations. */
 export function collectEditPoints(
 	clips: ClipRegion[],
@@ -203,7 +211,7 @@ export function useFinalCutShortcuts(params: UseFinalCutShortcutsParams) {
 					p.onBlade();
 					break;
 				case "step":
-					seekMs(nowMs + command.frames * FRAME_STEP_MS);
+					seekMs(stepFrames(nowMs, command.frames));
 					break;
 				case "edit-point": {
 					const points = collectEditPoints(

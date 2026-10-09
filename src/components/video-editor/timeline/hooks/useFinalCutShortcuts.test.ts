@@ -4,6 +4,7 @@ import {
 	collectEditPoints,
 	findAdjacentEditPoint,
 	resolveFinalCutCommand,
+	stepFrames,
 	zoomTimelineRange,
 } from "./useFinalCutShortcuts";
 
@@ -110,5 +111,13 @@ describe("zoomTimelineRange", () => {
 			start: 0,
 			end: 9000,
 		});
+	});
+});
+
+describe("stepFrames", () => {
+	it("does not drift when steps start from a rounded playhead", () => {
+		let timeMs = 0;
+		for (let step = 0; step < 18; step += 1) timeMs = Math.round(stepFrames(timeMs, 10));
+		expect(timeMs).toBe(3000);
 	});
 });
