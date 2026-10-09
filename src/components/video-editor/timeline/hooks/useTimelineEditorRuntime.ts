@@ -12,6 +12,7 @@ import type {
 	ZoomFocus,
 	ZoomRegion,
 } from "../../types";
+import { usePlayheadClock } from "../../state/playheadClock";
 import type { ClipSequenceSpan, TimelineShortcutBindings } from "../core/timelineTypes";
 import type { TimelineEditorHandle } from "../TimelineEditor";
 import { useTimelineAudioActions } from "./actions/useTimelineAudioActions";
@@ -208,7 +209,7 @@ export function useTimelineEditorRuntime({
 		defaultRegionDurationMs,
 		canPlaceZoomAtMs,
 		addZoomAtMs,
-		handleAddZoom,
+		handleAddZoom: handleAddZoomAtCommittedTime,
 		handleSuggestZooms,
 	} = useTimelineZoomActions({
 		timeline: { videoDuration, totalMs, currentTimeMs },
@@ -228,12 +229,35 @@ export function useTimelineEditorRuntime({
 			onCaptionAdded,
 		});
 
+	// Playhead commands read the live clock: the committed time can trail playback by one tick.
+	const playheadClock = usePlayheadClock();
+	const readPlayheadMs = useCallback(
+		() => (playheadClock ? Math.round(playheadClock.get() * 1000) : currentTimeMs),
+		[playheadClock, currentTimeMs],
+	);
+
+	const handleAddZoom = useCallback(() => {
+		if (!playheadClock) {
+			handleAddZoomAtCommittedTime();
+			return;
+		}
+		if (!videoDuration || videoDuration === 0 || totalMs === 0) return;
+		addZoomAtMs(readPlayheadMs());
+	}, [
+		playheadClock,
+		handleAddZoomAtCommittedTime,
+		videoDuration,
+		totalMs,
+		addZoomAtMs,
+		readPlayheadMs,
+	]);
+
 	const handleSplitClip = useCallback(() => {
 		if (!videoDuration || videoDuration === 0 || totalMs === 0 || !onClipSplit) {
 			return;
 		}
-		onClipSplit(currentTimeMs);
-	}, [videoDuration, totalMs, currentTimeMs, onClipSplit]);
+		onClipSplit(readPlayheadMs());
+	}, [videoDuration, totalMs, readPlayheadMs, onClipSplit]);
 
 	const { handleAddAudio } = useTimelineAudioActions({
 		timeline: { videoDuration, totalMs, currentTimeMs },
@@ -253,11 +277,11 @@ export function useTimelineEditorRuntime({
 			}
 
 			const latestStartPos = Math.max(0, totalMs - defaultDuration);
-			const startPos = Math.max(0, Math.min(currentTimeMs, latestStartPos));
+			const startPos = Math.max(0, Math.min(readPlayheadMs(), latestStartPos));
 			const endPos = Math.min(startPos + defaultDuration, totalMs);
 			onAnnotationAdded({ start: startPos, end: endPos }, trackIndex);
 		},
-		[videoDuration, totalMs, currentTimeMs, defaultRegionDurationMs, onAnnotationAdded],
+		[videoDuration, totalMs, readPlayheadMs, defaultRegionDurationMs, onAnnotationAdded],
 	);
 
 	useTimelineKeyboardShortcuts({

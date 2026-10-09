@@ -20,6 +20,7 @@ import { useEditorPlaybackControls } from "./useEditorPlaybackControls";
 import { useFreshRecordingAutoZoom } from "./useFreshRecordingAutoZoom";
 import { useTimelineProjection } from "./useTimelineProjection";
 import { useZoomRegionCommands } from "./useZoomRegionCommands";
+import type { PlayheadClock } from "../state/playheadClock";
 
 type Input = {
 	t: ReturnType<typeof useI18n>["t"];
@@ -33,6 +34,7 @@ type Input = {
 	currentSourcePath: string | null;
 	duration: number;
 	currentTime: number;
+	playheadClock?: PlayheadClock;
 	isPlaying: boolean;
 	previewVolume: number;
 	loading: boolean;
@@ -100,6 +102,7 @@ export function useTimelineEditingController(input: Input) {
 		sourceAudioFallbackRefreshKey: timeline.sourceAudioFallbackRefreshKey,
 		summarizeErrorMessage,
 		onSourceFallbackLoadError: handleSourceFallbackLoadError,
+		playheadClock: input.playheadClock,
 	});
 	const playback = useEditorPlaybackControls({
 		videoPlaybackRef: input.videoPlaybackRef,

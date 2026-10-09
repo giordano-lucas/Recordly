@@ -111,6 +111,7 @@ import {
 } from "./videoPlayback/motionSmoothing";
 import { updateOverlayIndicator } from "./videoPlayback/overlayUtils";
 import { supportsPreviewPlaybackRate } from "./videoPlayback/playbackRate";
+import { useLivePlayheadTime } from "./state/playheadClock";
 import { PreviewVideoSource } from "./videoPlayback/previewVideoSource";
 import { usePreviewVideoReady } from "./videoPlayback/usePreviewVideoReady";
 import { getSceneEffectMetrics } from "./videoPlayback/sceneEffects";
@@ -308,7 +309,7 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 			onDurationChange,
 			onPreviewReadyChange,
 			onTimeUpdate,
-			currentTime: timelineTime,
+			currentTime: committedTimelineTime,
 			clipRegions,
 			onPlayStateChange,
 			onError,
@@ -428,6 +429,12 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		const [captionEditSession, setCaptionEditSession] = useState<CaptionEditSession | null>(
 			null,
 		);
+		// Animated captions need the playhead every frame. Everything else here is
+		// driven by refs from the playback ticker, so the throttled time suffices.
+		const timelineTime = useLivePlayheadTime(
+			committedTimelineTime,
+			Boolean(autoCaptionSettings?.enabled) && autoCaptions.length > 0,
+		);
 		const currentTime = mapTimelineTimeToSourceTime(timelineTime * 1000, clipRegions) / 1000;
 		const isGap = !findPreviewClipAtTimelineTime(timelineTime * 1000, clipRegions);
 		const clipRegionsRef = useRef(clipRegions);
@@ -436,7 +443,8 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		const timelineTimeRef = useRef(timelineTime);
 		useEffect(() => {
 			onPlaybackErrorRef.current = onError;
-			timelineTimeRef.current = timelineTime;
+			// The transport owns this ref during playback (see the guard on currentTimeRef).
+			if (!isPlayingRef.current) timelineTimeRef.current = timelineTime;
 		}, [onError, timelineTime]);
 		const currentTimeRef = useRef(0);
 		useEffect(() => {
@@ -1543,8 +1551,10 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(
 		}, [cursorSway, requestPausedFrameRefresh]);
 
 		useEffect(() => {
-			const timeMs = currentTime * 1000;
-			currentTimeRef.current = timeMs;
+			// While playing, the transport writes this ref every frame; a throttled
+			// prop value here would drag the cursor and camera back in time.
+			if (isPlayingRef.current) return;
+			currentTimeRef.current = currentTime * 1000;
 		}, [currentTime]);
 
 		useEffect(() => {
