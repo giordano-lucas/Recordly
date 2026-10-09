@@ -10,10 +10,14 @@ import {
 	resetEditorHistoryStack,
 	undoEditorHistoryStack,
 } from "./editorHistory";
+import type { ZoomRegion } from "./types";
 
 function createSnapshot(id: string | null): EditorHistorySnapshot {
+	// Each id is a distinct edit; selection alone never records history.
 	return {
-		zoomRegions: [],
+		zoomRegions: id
+			? [{ id, startMs: 0, endMs: 1000, depth: 2, focus: { cx: 0.5, cy: 0.5 } } as ZoomRegion]
+			: [],
 		clipRegions: [],
 		speedRegions: [],
 		annotationRegions: [],
@@ -47,6 +51,34 @@ describe("editorHistory", () => {
 
 		expect(stack.past).toEqual([]);
 		expect(stack.future).toEqual([]);
+	});
+
+	it("tracks selection without recording an undo step", () => {
+		const stack = createEditorHistoryStack();
+		const base = createSnapshot("first");
+
+		recordEditorHistorySnapshot(stack, base);
+		const result = recordEditorHistorySnapshot(stack, {
+			...base,
+			selectedZoomId: null,
+			selectedAnnotationId: "annotation-1",
+		});
+
+		expect(result).toBe("unchanged");
+		expect(stack.past).toEqual([]);
+		expect(stack.current?.selectedAnnotationId).toBe("annotation-1");
+		expect(stack.current?.selectedZoomId).toBeNull();
+	});
+
+	it("skips deep comparison when region arrays keep their identity", () => {
+		const stack = createEditorHistoryStack();
+		const base = createSnapshot("first");
+		recordEditorHistorySnapshot(stack, base);
+		// A replaced array with equal contents is still not an edit.
+		expect(
+			recordEditorHistorySnapshot(stack, { ...base, zoomRegions: [...base.zoomRegions] }),
+		).toBe("unchanged");
+		expect(recordEditorHistorySnapshot(stack, createSnapshot("second"))).toBe("recorded");
 	});
 
 	it("records changes and clears redo history", () => {
