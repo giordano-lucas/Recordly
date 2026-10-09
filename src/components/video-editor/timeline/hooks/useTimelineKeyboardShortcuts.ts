@@ -6,7 +6,8 @@ import { resolveDeleteSelectionTarget } from "./utils/timelineSelectionUtils";
 interface UseTimelineKeyboardShortcutsParams {
 	isMac: boolean;
 	keyShortcuts: TimelineShortcutBindings;
-	isTimelineFocusedRef: RefObject<boolean | null>;
+	/** No longer gates shortcuts; kept so callers need not change. */
+	isTimelineFocusedRef?: RefObject<boolean | null>;
 	hasAnyZoomBlocks: boolean;
 	activateSelectAllZooms: () => void;
 	annotationCount: number;
@@ -33,7 +34,6 @@ interface UseTimelineKeyboardShortcutsParams {
 export function useTimelineKeyboardShortcuts({
 	isMac,
 	keyShortcuts,
-	isTimelineFocusedRef,
 	hasAnyZoomBlocks,
 	activateSelectAllZooms,
 	annotationCount,
@@ -110,9 +110,8 @@ export function useTimelineKeyboardShortcuts({
 				return;
 			}
 
-			if (!isTimelineFocusedRef.current) {
-				return;
-			}
+			// Editing keys work anywhere in the editor, like Final Cut Pro; text
+			// fields, dialogs and menus are excluded above.
 
 			if (matchesShortcut(e, { key: "a", ctrl: true }, isMac)) {
 				if (!hasAnyZoomBlocks) {
@@ -155,7 +154,6 @@ export function useTimelineKeyboardShortcuts({
 		handleSplitClip,
 		hasAnyZoomBlocks,
 		isMac,
-		isTimelineFocusedRef,
 		keyShortcuts,
 		selectAllBlocksActive,
 		selectedAnnotationId,

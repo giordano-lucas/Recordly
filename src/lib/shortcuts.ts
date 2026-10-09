@@ -25,7 +25,59 @@ export interface FixedShortcut {
 	bindings: ShortcutBinding[];
 }
 
+/** Final Cut Pro default editing keys; handled by useFinalCutShortcuts. */
+export const FINAL_CUT_SHORTCUTS: FixedShortcut[] = [
+	{ label: "Blade at Playhead", display: "⌘ + B", bindings: [{ key: "b", ctrl: true }] },
+	{
+		label: "Previous / Next Frame",
+		display: "← / →",
+		bindings: [{ key: "arrowleft" }, { key: "arrowright" }],
+	},
+	{
+		label: "Back / Forward 10 Frames",
+		display: "Shift + ← / →",
+		bindings: [
+			{ key: "arrowleft", shift: true },
+			{ key: "arrowright", shift: true },
+		],
+	},
+	{
+		label: "Previous / Next Edit",
+		display: "↑ / ↓",
+		bindings: [{ key: "arrowup" }, { key: "arrowdown" }],
+	},
+	{
+		label: "Go to Start / End",
+		display: "Home / End",
+		bindings: [{ key: "home" }, { key: "end" }],
+	},
+	{ label: "Stop / Play", display: "K / L", bindings: [{ key: "k" }, { key: "l" }] },
+	{
+		label: "Trim Start / End to Playhead",
+		display: "⌥ + [ / ]",
+		bindings: [
+			{ key: "[", alt: true },
+			{ key: "]", alt: true },
+		],
+	},
+	{
+		label: "Zoom Timeline In / Out",
+		display: "⌘ + = / -",
+		bindings: [
+			{ key: "=", ctrl: true },
+			{ key: "-", ctrl: true },
+		],
+	},
+	{ label: "Zoom Timeline to Fit", display: "Shift + Z", bindings: [{ key: "z", shift: true }] },
+	{
+		label: "Deselect All",
+		display: "Esc / ⌘ + Shift + A",
+		bindings: [{ key: "escape" }, { key: "a", ctrl: true, shift: true }],
+	},
+];
+
 export const FIXED_SHORTCUTS: FixedShortcut[] = [
+	...FINAL_CUT_SHORTCUTS,
 	{ label: "Cycle Annotations Forward", display: "Tab", bindings: [{ key: "tab" }] },
 	{
 		label: "Cycle Annotations Backward",

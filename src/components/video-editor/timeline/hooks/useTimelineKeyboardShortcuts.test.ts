@@ -128,10 +128,15 @@ it("select-all zooms takes priority over an individual clip selection", () => {
 	expect(params.deleteSelectedZoom).toHaveBeenCalledOnce();
 	expect(params.deleteSelectedClip).not.toHaveBeenCalled();
 });
-it("keeps creation and select-all shortcuts scoped to the timeline", () => {
+it("runs creation and select-all shortcuts without timeline focus", () => {
 	const { press, params } = setup();
 	press({ key: "z" });
 	press({ key: "a", metaKey: true });
+	expect(params.handleAddZoom).toHaveBeenCalledOnce();
+	expect(params.activateSelectAllZooms).toHaveBeenCalledOnce();
+});
+it("ignores creation shortcuts typed into text fields", () => {
+	const { press, params } = setup();
+	press({ key: "z", target: new Input() });
 	expect(params.handleAddZoom).not.toHaveBeenCalled();
-	expect(params.activateSelectAllZooms).not.toHaveBeenCalled();
 });

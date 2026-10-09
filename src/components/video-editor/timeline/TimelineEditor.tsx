@@ -25,6 +25,7 @@ import TimelineWrapper from "./components/wrapper/TimelineWrapper";
 import { calculateTimelineScale } from "./core/time";
 import type { ClipSequenceSpan } from "./core/timelineTypes";
 import { useTimelineAudioPeaks } from "./hooks/useTimelineAudioPeaks";
+import { useFinalCutShortcuts } from "./hooks/useFinalCutShortcuts";
 import { useTimelineEditorRuntime } from "./hooks/useTimelineEditorRuntime";
 import { useTimelineRange } from "./hooks/useTimelineRange";
 import {
@@ -354,6 +355,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 			canPlaceCaptionAtMs,
 			addCaptionAtMs,
 			resolveCaptionSpanAtMs,
+			handleSplitClip,
 		} = useTimelineEditorRuntime({
 			ref,
 			videoDuration,
@@ -402,6 +404,28 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 			isMac,
 			keyShortcuts,
 			isTimelineFocusedRef,
+		});
+
+		useFinalCutShortcuts({
+			isMac,
+			enabled: !isDragging,
+			totalMs,
+			currentTimeMs,
+			minVisibleRangeMs: timelineScale.minVisibleRangeMs,
+			range: clampedRange,
+			setRange,
+			clipRegions,
+			zoomRegions,
+			annotationRegions,
+			selectedClipId,
+			minClipDurationMs: safeMinDurationMs,
+			onSeek,
+			onBlade: handleSplitClip,
+			onClipSpanChange,
+			onDeselectAll: () => {
+				clearSelectedBlocks();
+				setSelectedKeyframeId(null);
+			},
 		});
 
 		if (!videoDuration || videoDuration === 0) {
