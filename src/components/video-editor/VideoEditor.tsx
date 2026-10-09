@@ -15,6 +15,7 @@ import { useVideoEditorPresets } from "./presets/useVideoEditorPresets";
 import { useEditorProjectController } from "./project/useEditorProjectController";
 import { useProjectLibraryController } from "./project/useProjectLibraryController";
 import { getDevOpenRecordingConfig, getSmokeExportConfig } from "./smokeExportConfig";
+import { PlayheadClockContext } from "./state/playheadClock";
 import { useAppearanceState } from "./state/useAppearanceState";
 import { useEditorUiState } from "./state/useEditorUiState";
 import { useProjectState } from "./state/useProjectState";
@@ -69,9 +70,7 @@ export default function VideoEditor() {
 		setAspectRatio,
 		activeEffectSection,
 		setActiveEffectSection,
-		setPreviewVersion,
 		isPreviewReady,
-		setIsPreviewReady,
 		setAutoSuggestZoomsTrigger,
 		videoPlaybackRef,
 		projectNameInputRef,
@@ -178,11 +177,6 @@ export default function VideoEditor() {
 		setShowCursor(nextShowCursor);
 	}, []);
 
-	const remountPreview = useCallback(() => {
-		setIsPreviewReady(false);
-		setPreviewVersion((version) => version + 1);
-	}, []);
-
 	useEffect(() => {
 		return () => {
 			exportRunIdRef.current += 1;
@@ -259,7 +253,6 @@ export default function VideoEditor() {
 		applySessionPresentation,
 		refreshProjectLibrary,
 		captureProjectThumbnail,
-		remountPreview,
 	});
 	const {
 		snapshot: { currentSourcePath },
@@ -280,6 +273,7 @@ export default function VideoEditor() {
 		currentSourcePath,
 		duration,
 		currentTime,
+		playheadClock: ui.playheadClock,
 		isPlaying,
 		previewVolume,
 		loading,
@@ -341,7 +335,6 @@ export default function VideoEditor() {
 		captionSidecarPayload,
 		experimentalNvidiaCudaExport,
 		nvidiaCudaExportAvailable,
-		remountPreview,
 	});
 	const previewAspectRatioValue = getAspectRatioValue(
 		aspectRatio,
@@ -380,27 +373,29 @@ export default function VideoEditor() {
 		handleClearWebcam,
 	});
 	return (
-		<EditorShell
-			t={t}
-			project={project}
-			appearance={appearance}
-			timeline={timeline}
-			ui={ui}
-			presets={presets}
-			projectController={projectController}
-			editing={editing}
-			exportController={exportController}
-			exportSettings={exportSettings}
-			exportSession={exportSession}
-			exportDimensions={exportDimensions}
-			settingsPanelProps={settingsPanelProps}
-			headerLeftControlsPaddingClass={headerLeftControlsPaddingClass}
-			hasCaptionsForSidecar={hasCaptionsForSidecar}
-			nvidiaCudaExportAvailable={nvidiaCudaExportAvailable}
-			experimentalNvidiaCudaExport={experimentalNvidiaCudaExport}
-			setExperimentalNvidiaCudaExport={setExperimentalNvidiaCudaExport}
-			effectiveShowCursor={effectiveShowCursor}
-			previewAspectRatioValue={previewAspectRatioValue}
-		/>
+		<PlayheadClockContext.Provider value={ui.playheadClock}>
+			<EditorShell
+				t={t}
+				project={project}
+				appearance={appearance}
+				timeline={timeline}
+				ui={ui}
+				presets={presets}
+				projectController={projectController}
+				editing={editing}
+				exportController={exportController}
+				exportSettings={exportSettings}
+				exportSession={exportSession}
+				exportDimensions={exportDimensions}
+				settingsPanelProps={settingsPanelProps}
+				headerLeftControlsPaddingClass={headerLeftControlsPaddingClass}
+				hasCaptionsForSidecar={hasCaptionsForSidecar}
+				nvidiaCudaExportAvailable={nvidiaCudaExportAvailable}
+				experimentalNvidiaCudaExport={experimentalNvidiaCudaExport}
+				setExperimentalNvidiaCudaExport={setExperimentalNvidiaCudaExport}
+				effectiveShowCursor={effectiveShowCursor}
+				previewAspectRatioValue={previewAspectRatioValue}
+			/>
+		</PlayheadClockContext.Provider>
 	);
 }

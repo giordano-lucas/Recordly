@@ -8,6 +8,7 @@ import {
 	getMediaSyncPlaybackRate,
 	resolvePreviewMediaDuration,
 } from "@/lib/mediaTiming";
+import type { PlayheadClock } from "../state/playheadClock";
 import type { AudioRegion } from "../types";
 import { supportsPreviewPlaybackRate } from "../videoPlayback/playbackRate";
 import {
@@ -33,6 +34,7 @@ interface UseAudioPreviewSyncParams {
 	isCurrentClipMuted: boolean;
 	getSourceTrackPreviewGain: (audioPath: string) => number;
 	onSourceFallbackLoadError: (error: unknown) => void;
+	playheadClock?: PlayheadClock;
 }
 
 export function useAudioPreviewSync({
@@ -49,6 +51,7 @@ export function useAudioPreviewSync({
 	isCurrentClipMuted,
 	getSourceTrackPreviewGain,
 	onSourceFallbackLoadError,
+	playheadClock,
 }: UseAudioPreviewSyncParams) {
 	const resolvedPlan = useMemo(
 		() =>
@@ -337,39 +340,52 @@ export function useAudioPreviewSync({
 		};
 	}, []);
 
-	useEffect(() => {
-		const currentTimeMs = timelineTime * 1000;
+	const syncUserTracks = useCallback(
+		(timelineSeconds: number) => {
+			const currentTimeMs = timelineSeconds * 1000;
 
-		for (const track of resolvedUserTracks) {
-			const audio = audioElementsRef.current.get(track.id);
-			if (!audio) continue;
+			for (const track of resolvedUserTracks) {
+				const audio = audioElementsRef.current.get(track.id);
+				if (!audio) continue;
 
-			const startMs = track.timelineBinding.startMs;
-			const endMs = track.timelineBinding.endMs;
-			const isInRegion = currentTimeMs >= startMs && currentTimeMs < endMs;
+				const startMs = track.timelineBinding.startMs;
+				const endMs = track.timelineBinding.endMs;
+				const isInRegion = currentTimeMs >= startMs && currentTimeMs < endMs;
 
-			if (isPlaying && isInRegion) {
-				enablePitchPreservingPlayback(audio);
-				const audioOffset = (currentTimeMs - startMs) / 1000;
-				if (Math.abs(audio.currentTime - audioOffset) > 0.2) {
-					audio.currentTime = audioOffset;
+				if (isPlaying && isInRegion) {
+					enablePitchPreservingPlayback(audio);
+					const audioOffset = (currentTimeMs - startMs) / 1000;
+					if (Math.abs(audio.currentTime - audioOffset) > 0.2) {
+						audio.currentTime = audioOffset;
+					}
+					const syncedPlaybackRate = getMediaSyncPlaybackRate({
+						basePlaybackRate: 1,
+						currentTime: audio.currentTime,
+						targetTime: audioOffset,
+					});
+					if (Math.abs(audio.playbackRate - syncedPlaybackRate) > 0.001) {
+						audio.playbackRate = syncedPlaybackRate;
+					}
+					if (audio.paused) {
+						audio.play().catch(() => undefined);
+					}
+				} else if (!audio.paused) {
+					audio.pause();
 				}
-				const syncedPlaybackRate = getMediaSyncPlaybackRate({
-					basePlaybackRate: 1,
-					currentTime: audio.currentTime,
-					targetTime: audioOffset,
-				});
-				if (Math.abs(audio.playbackRate - syncedPlaybackRate) > 0.001) {
-					audio.playbackRate = syncedPlaybackRate;
-				}
-				if (audio.paused) {
-					audio.play().catch(() => undefined);
-				}
-			} else if (!audio.paused) {
-				audio.pause();
 			}
-		}
-	}, [isPlaying, resolvedUserTracks, timelineTime]);
+		},
+		[isPlaying, resolvedUserTracks],
+	);
+
+	useEffect(() => {
+		syncUserTracks(timelineTime);
+	}, [syncUserTracks, timelineTime]);
+
+	// The editor's timelineTime is throttled; region starts follow the live clock.
+	useEffect(() => {
+		if (!playheadClock || !isPlaying) return;
+		return playheadClock.subscribe(() => syncUserTracks(playheadClock.get()));
+	}, [playheadClock, isPlaying, syncUserTracks]);
 
 	useEffect(() => {
 		if (resolvedSourceTracks.length === 0) {

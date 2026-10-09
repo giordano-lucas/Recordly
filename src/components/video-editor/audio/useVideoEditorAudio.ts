@@ -7,6 +7,7 @@ import { isClipMutedById } from "./clipAudio";
 import { useAudioPreviewSync } from "./useAudioPreviewSync";
 import { useClipAudioSettingsController } from "./useClipAudioSettingsController";
 import { useSourceAudioFallback } from "./useSourceAudioFallback";
+import type { PlayheadClock } from "../state/playheadClock";
 
 function extractLocalPathFromMediaServerUrl(input: string | null | undefined): string | null {
 	if (!input) return null;
@@ -44,6 +45,7 @@ interface UseVideoEditorAudioParams {
 	sourceAudioFallbackRefreshKey?: number;
 	summarizeErrorMessage: (message: string) => string;
 	onSourceFallbackLoadError: (error: unknown) => void;
+	playheadClock?: PlayheadClock;
 }
 
 export function useVideoEditorAudio({
@@ -63,6 +65,7 @@ export function useVideoEditorAudio({
 	sourceAudioFallbackRefreshKey = 0,
 	summarizeErrorMessage,
 	onSourceFallbackLoadError,
+	playheadClock,
 }: UseVideoEditorAudioParams) {
 	const fallbackLookupSourcePath = useMemo(
 		() => extractLocalPathFromMediaServerUrl(currentSourcePath) ?? currentSourcePath,
@@ -127,6 +130,7 @@ export function useVideoEditorAudio({
 		isCurrentClipMuted,
 		getSourceTrackPreviewGain,
 		onSourceFallbackLoadError,
+		playheadClock,
 	});
 
 	return {

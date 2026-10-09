@@ -2,6 +2,7 @@ export const SHORTCUT_ACTIONS = [
 	"addZoom",
 	"splitClip",
 	"addAnnotation",
+	"addBlur",
 	"addKeyframe",
 	"deleteSelected",
 	"playPause",
@@ -25,7 +26,80 @@ export interface FixedShortcut {
 	bindings: ShortcutBinding[];
 }
 
+/** Final Cut Pro default editing keys; handled by useFinalCutShortcuts. */
+export const FINAL_CUT_SHORTCUTS: FixedShortcut[] = [
+	{ label: "Blade at Playhead", display: "⌘ + B", bindings: [{ key: "b", ctrl: true }] },
+	{
+		label: "Previous / Next Frame",
+		display: "← / →",
+		bindings: [{ key: "arrowleft" }, { key: "arrowright" }],
+	},
+	{
+		label: "Back / Forward 10 Frames",
+		display: "Shift + ← / →",
+		bindings: [
+			{ key: "arrowleft", shift: true },
+			{ key: "arrowright", shift: true },
+		],
+	},
+	{
+		label: "Previous / Next Edit",
+		display: "↑ / ↓",
+		bindings: [{ key: "arrowup" }, { key: "arrowdown" }],
+	},
+	{
+		label: "Go to Start / End",
+		display: "Home / End",
+		bindings: [{ key: "home" }, { key: "end" }],
+	},
+	{ label: "Stop / Play", display: "K / L", bindings: [{ key: "k" }, { key: "l" }] },
+	{
+		label: "Trim Start / End to Playhead",
+		display: "⌥ + [ / ]",
+		bindings: [
+			{ key: "[", alt: true },
+			{ key: "]", alt: true },
+		],
+	},
+	{
+		label: "Zoom Timeline In / Out",
+		display: "⌘ + = / -",
+		bindings: [
+			{ key: "=", ctrl: true },
+			{ key: "-", ctrl: true },
+		],
+	},
+	{
+		label: "Mark Range In / Out",
+		display: "I / O",
+		bindings: [{ key: "i" }, { key: "o" }],
+	},
+	{
+		label: "Delete Range (with I/O set)",
+		display: "⌫",
+		bindings: [],
+	},
+	{ label: "Clear Range", display: "⌥ + X", bindings: [{ key: "x", alt: true }] },
+	{ label: "Zoom Timeline to Fit", display: "Shift + Z", bindings: [{ key: "z", shift: true }] },
+	{
+		label: "Copy / Cut / Paste",
+		display: "⌘ + C / X / V",
+		bindings: [
+			{ key: "c", ctrl: true },
+			{ key: "x", ctrl: true },
+			{ key: "v", ctrl: true },
+		],
+	},
+	{ label: "Duplicate", display: "⌘ + D", bindings: [{ key: "d", ctrl: true }] },
+	{
+		label: "Deselect All",
+		display: "Esc / ⌘ + Shift + A",
+		bindings: [{ key: "escape" }, { key: "a", ctrl: true, shift: true }],
+	},
+];
+
 export const FIXED_SHORTCUTS: FixedShortcut[] = [
+	...FINAL_CUT_SHORTCUTS,
 	{ label: "Cycle Annotations Forward", display: "Tab", bindings: [{ key: "tab" }] },
 	{
 		label: "Cycle Annotations Backward",
@@ -76,8 +150,10 @@ export const DEFAULT_SHORTCUTS: ShortcutsConfig = {
 	addZoom: { key: "z" },
 	splitClip: { key: "c" },
 	addAnnotation: { key: "a" },
+	addBlur: { key: "b" },
 	addKeyframe: { key: "f" },
-	deleteSelected: { key: "d", ctrl: true },
+	// ⌘D is Duplicate, as in Final Cut Pro and most editors.
+	deleteSelected: { key: "backspace", ctrl: true },
 	playPause: { key: " " },
 };
 
@@ -85,6 +161,7 @@ export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
 	addZoom: "Add Zoom",
 	splitClip: "Split Clip",
 	addAnnotation: "Add Annotation",
+	addBlur: "Add Blur",
 	addKeyframe: "Add Keyframe",
 	deleteSelected: "Delete Selected",
 	playPause: "Play / Pause",
@@ -125,12 +202,16 @@ export function formatBinding(binding: ShortcutBinding, isMac: boolean): string 
 	return parts.join(" + ");
 }
 
+/** Earlier default for deleteSelected, now Duplicate; saved configs drop it. */
+const LEGACY_DELETE_SELECTED: ShortcutBinding = { key: "d", ctrl: true };
+
 export function mergeWithDefaults(partial: Partial<ShortcutsConfig>): ShortcutsConfig {
 	const merged = { ...DEFAULT_SHORTCUTS };
 	for (const action of SHORTCUT_ACTIONS) {
-		if (partial[action]) {
-			merged[action] = partial[action] as ShortcutBinding;
-		}
+		const binding = partial[action];
+		if (!binding) continue;
+		if (action === "deleteSelected" && bindingsEqual(binding, LEGACY_DELETE_SELECTED)) continue;
+		merged[action] = binding as ShortcutBinding;
 	}
 	return merged;
 }

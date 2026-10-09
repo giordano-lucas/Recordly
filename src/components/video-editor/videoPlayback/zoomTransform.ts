@@ -569,6 +569,16 @@ export function applyZoomTransform({
 		resetMotionEffects(zoomBlurFilter, motionBlurFilter, motionBlurState);
 	}
 
+	// A blur at zero strength renders as identity but still costs a full-stage
+	// offscreen pass; Pixi skips the pass entirely when every filter is disabled.
+	if (motionBlurFilter) {
+		const { x, y } = motionBlurFilter.velocity;
+		motionBlurFilter.enabled = x !== 0 || y !== 0;
+	}
+	if (zoomBlurFilter) {
+		zoomBlurFilter.enabled = zoomBlurFilter.strength > 0;
+	}
+
 	return {
 		scale: transform.scale,
 		x: transform.x,

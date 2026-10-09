@@ -87,7 +87,7 @@ describe.each(selections)("delete %s", (selection, action) => {
 	});
 	it("honors the configured delete shortcut outside the timeline", () => {
 		const { press, params } = setup({ [selection]: "block" });
-		expect(press({ key: "d", metaKey: true }).preventDefault).toHaveBeenCalledOnce();
+		expect(press({ key: "Backspace", metaKey: true }).preventDefault).toHaveBeenCalledOnce();
 		expect(params[action]).toHaveBeenCalledOnce();
 	});
 	it.each([
@@ -101,19 +101,18 @@ describe.each(selections)("delete %s", (selection, action) => {
 		expect(press({ target }).preventDefault).not.toHaveBeenCalled();
 		expect(params[action]).not.toHaveBeenCalled();
 	});
+	it("leaves ⌘D to Duplicate", () => {
+		const { press, params } = setup({ [selection]: "block" });
+		press({ key: "d", metaKey: true });
+		expect(params[action]).not.toHaveBeenCalled();
+	});
+	// ⌘⌫ is the configured delete shortcut, so metaKey alone is not unrelated.
 	it("ignores consumed/composing events and unrelated modifier combinations", () => {
 		const { press, params } = setup({
 			[selection]: "block",
 			isTimelineFocusedRef: { current: true },
 		});
-		for (const flag of [
-			"defaultPrevented",
-			"isComposing",
-			"ctrlKey",
-			"metaKey",
-			"altKey",
-			"shiftKey",
-		]) {
+		for (const flag of ["defaultPrevented", "isComposing", "ctrlKey", "altKey", "shiftKey"]) {
 			press({ [flag]: true });
 		}
 		expect(params[action]).not.toHaveBeenCalled();
@@ -128,10 +127,15 @@ it("select-all zooms takes priority over an individual clip selection", () => {
 	expect(params.deleteSelectedZoom).toHaveBeenCalledOnce();
 	expect(params.deleteSelectedClip).not.toHaveBeenCalled();
 });
-it("keeps creation and select-all shortcuts scoped to the timeline", () => {
+it("runs creation and select-all shortcuts without timeline focus", () => {
 	const { press, params } = setup();
 	press({ key: "z" });
 	press({ key: "a", metaKey: true });
+	expect(params.handleAddZoom).toHaveBeenCalledOnce();
+	expect(params.activateSelectAllZooms).toHaveBeenCalledOnce();
+});
+it("ignores creation shortcuts typed into text fields", () => {
+	const { press, params } = setup();
+	press({ key: "z", target: new Input() });
 	expect(params.handleAddZoom).not.toHaveBeenCalled();
-	expect(params.activateSelectAllZooms).not.toHaveBeenCalled();
 });

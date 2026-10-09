@@ -24,7 +24,25 @@ export type EditorHistoryStack = {
 	past: EditorHistorySnapshot[];
 	current: EditorHistorySnapshot | null;
 	future: EditorHistorySnapshot[];
+	/** Uncloned input of the last record call, used to skip deep compares of untouched arrays. */
+	lastSource: EditorHistorySnapshot | null;
 };
+
+const DOCUMENT_KEYS = [
+	"zoomRegions",
+	"clipRegions",
+	"speedRegions",
+	"annotationRegions",
+	"audioRegions",
+	"autoCaptions",
+] as const satisfies readonly (keyof EditorHistorySnapshot)[];
+
+const SELECTION_KEYS = [
+	"selectedZoomId",
+	"selectedClipId",
+	"selectedAnnotationId",
+	"selectedAudioId",
+] as const satisfies readonly (keyof EditorHistorySnapshot)[];
 
 export type EditorHistoryRecordResult = "initialized" | "applied" | "recorded" | "unchanged";
 
@@ -35,6 +53,7 @@ export function createEditorHistoryStack(): EditorHistoryStack {
 		past: [],
 		current: null,
 		future: [],
+		lastSource: null,
 	};
 }
 
@@ -42,6 +61,7 @@ export function resetEditorHistoryStack(stack: EditorHistoryStack): void {
 	stack.past = [];
 	stack.current = null;
 	stack.future = [];
+	stack.lastSource = null;
 }
 
 export function cloneEditorHistorySnapshot(snapshot: EditorHistorySnapshot): EditorHistorySnapshot {
@@ -85,6 +105,20 @@ export function areEditorHistorySnapshotsEqual(
 	return areDeepEqual(left, right);
 }
 
+function isDocumentUnchanged(stack: EditorHistoryStack, snapshot: EditorHistorySnapshot): boolean {
+	const current = stack.current;
+	if (!current) return false;
+	return DOCUMENT_KEYS.every((key) => {
+		// React state is replaced, not mutated: an identical reference cannot have changed.
+		if (stack.lastSource && stack.lastSource[key] === snapshot[key]) return true;
+		return areDeepEqual(current[key], snapshot[key]);
+	});
+}
+
+/**
+ * Records a timeline edit. Selection is carried along so undo restores what was
+ * selected, but selecting something on its own is never an undo step.
+ */
 export function recordEditorHistorySnapshot(
 	stack: EditorHistoryStack,
 	snapshot: EditorHistorySnapshot,
@@ -93,29 +127,33 @@ export function recordEditorHistorySnapshot(
 		maxEntries?: number;
 	} = {},
 ): EditorHistoryRecordResult {
-	const clonedSnapshot = cloneEditorHistorySnapshot(snapshot);
-
 	if (!stack.current) {
-		stack.current = clonedSnapshot;
+		stack.current = cloneEditorHistorySnapshot(snapshot);
+		stack.lastSource = snapshot;
 		return "initialized";
 	}
 
 	if (options.applyingHistory) {
-		stack.current = clonedSnapshot;
+		stack.current = cloneEditorHistorySnapshot(snapshot);
+		stack.lastSource = snapshot;
 		return "applied";
 	}
 
-	if (areEditorHistorySnapshotsEqual(stack.current, snapshot)) {
+	if (isDocumentUnchanged(stack, snapshot)) {
+		for (const key of SELECTION_KEYS) stack.current[key] = snapshot[key];
+		stack.lastSource = snapshot;
 		return "unchanged";
 	}
 
-	stack.past.push(cloneEditorHistorySnapshot(stack.current));
+	// stack.current is already a private clone, so it can move to the past as-is.
+	stack.past.push(stack.current);
 	const maxEntries = options.maxEntries ?? MAX_EDITOR_HISTORY_ENTRIES;
 	if (stack.past.length > maxEntries) {
 		stack.past.shift();
 	}
 
-	stack.current = clonedSnapshot;
+	stack.current = cloneEditorHistorySnapshot(snapshot);
+	stack.lastSource = snapshot;
 	stack.future = [];
 	return "recorded";
 }
@@ -136,6 +174,7 @@ export function undoEditorHistoryStack(
 
 	stack.future.push(cloneEditorHistorySnapshot(current));
 	stack.current = cloneEditorHistorySnapshot(previous);
+	stack.lastSource = null;
 	return cloneEditorHistorySnapshot(previous);
 }
 
@@ -155,5 +194,6 @@ export function redoEditorHistoryStack(
 
 	stack.past.push(cloneEditorHistorySnapshot(current));
 	stack.current = cloneEditorHistorySnapshot(next);
+	stack.lastSource = null;
 	return cloneEditorHistorySnapshot(next);
 }

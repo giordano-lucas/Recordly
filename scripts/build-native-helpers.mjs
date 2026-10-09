@@ -42,6 +42,10 @@ const helpers = [
 		source: "NativeCursorMonitor.swift",
 		output: "recordly-native-cursor-monitor",
 	},
+	{
+		source: "SensitiveTextScanner.swift",
+		output: "recordly-text-scan",
+	},
 ];
 
 const swiftcCheck = spawnSync("swiftc", ["--version"], { encoding: "utf8" });

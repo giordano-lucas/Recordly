@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type SetStateAction,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import { OPEN_EDITOR_SECTION_EVENT } from "@/lib/announcementActions";
 import { type AnnouncementEditorSection, isAnnouncementEditorSection } from "@/lib/announcements";
 import type { AspectRatio } from "@/utils/aspectRatioUtils";
@@ -6,6 +14,7 @@ import type { loadEditorPreferences } from "../editorPreferences";
 import type { TimelineEditorHandle } from "../timeline/TimelineEditor";
 import type { CropRegion, EditorEffectSection } from "../types";
 import type { VideoPlaybackRef } from "../VideoPlayback";
+import { createPlayheadClock } from "./playheadClock";
 
 type SessionPresentation = {
 	hideOverlayCursorByDefault?: boolean;
@@ -21,7 +30,20 @@ export function useEditorUiState(
 		typeof navigator !== "undefined" && /Mac/i.test(navigator.platform) ? "darwin" : "",
 	);
 	const [isPlaying, setIsPlaying] = useState(false);
-	const [currentTime, setCurrentTime] = useState(0);
+	// Playback publishes the playhead every frame; the editor tree only sees the
+	// throttled committed time (see playheadClock.ts).
+	const [playheadClock] = useState(createPlayheadClock);
+	useEffect(() => () => playheadClock.dispose(), [playheadClock]);
+	const currentTime = useSyncExternalStore(
+		playheadClock.subscribeCommitted,
+		playheadClock.getCommitted,
+	);
+	const setCurrentTime = useCallback(
+		(action: SetStateAction<number>) => {
+			playheadClock.set(typeof action === "function" ? action(playheadClock.get()) : action);
+		},
+		[playheadClock],
+	);
 	const [duration, setDuration] = useState(0);
 	const [sessionShowCursorOverride, setSessionShowCursorOverride] = useState<boolean | null>(
 		null,
@@ -116,6 +138,7 @@ export function useEditorUiState(
 		appPlatform,
 		isPlaying,
 		setIsPlaying,
+		playheadClock,
 		currentTime,
 		setCurrentTime,
 		duration,

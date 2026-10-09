@@ -26,10 +26,13 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { useI18n } from "@/contexts/I18nContext";
+import { useShortcuts } from "@/contexts/ShortcutsContext";
+import { formatBinding } from "@/lib/shortcuts";
 import { ASPECT_RATIOS, type AspectRatio, getAspectRatioLabel } from "@/utils/aspectRatioUtils";
 import type { useVideoEditorAudio } from "../audio/useVideoEditorAudio";
 import type { CaptionEditTarget } from "../captionEditing";
 import type { useAnnotationRegionCommands } from "../hooks/useAnnotationRegionCommands";
+import type { useAutoBlurSecrets } from "../hooks/useAutoBlurSecrets";
 import type { useEditorPlaybackControls } from "../hooks/useEditorPlaybackControls";
 import type { useTimelineProjection } from "../hooks/useTimelineProjection";
 import type { useZoomRegionCommands } from "../hooks/useZoomRegionCommands";
@@ -60,6 +63,7 @@ type Props = {
 	playback: ReturnType<typeof useEditorPlaybackControls>;
 	zoomCommands: ReturnType<typeof useZoomRegionCommands>;
 	annotationCommands: ReturnType<typeof useAnnotationRegionCommands>;
+	autoBlur: ReturnType<typeof useAutoBlurSecrets>;
 	effectiveCursorTelemetry: ReturnType<typeof useTimelineState>["cursorTelemetry"];
 	effectiveShowCursor: boolean;
 	isCropped: boolean;
@@ -103,6 +107,7 @@ export function EditorPreviewPanel(props: Props) {
 		playback,
 		zoomCommands,
 		annotationCommands,
+		autoBlur,
 		effectiveCursorTelemetry,
 		effectiveShowCursor,
 		isCropped,
@@ -116,6 +121,7 @@ export function EditorPreviewPanel(props: Props) {
 		setIsPlaying,
 		setError,
 	} = props;
+	const { shortcuts, isMac } = useShortcuts();
 
 	return (
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -252,6 +258,36 @@ export function EditorPreviewPanel(props: Props) {
 								className="cursor-pointer text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
 							>
 								{t("timeline.annotation.label")}
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => {
+									const nextTrack =
+										timeline.annotationRegions.length > 0
+											? Math.max(
+													...timeline.annotationRegions.map(
+														(region) => region.trackIndex ?? 0,
+													),
+												) + 1
+											: 0;
+									timelineRef.current?.addAnnotation(nextTrack, "blur");
+								}}
+								className="cursor-pointer text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+							>
+								<span className="flex w-full items-center justify-between gap-6">
+									<span>Blur</span>
+									<span className="text-xs text-muted-foreground/70">
+										{formatBinding(shortcuts.addBlur, isMac)}
+									</span>
+								</span>
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => void autoBlur.autoBlurSecrets()}
+								disabled={autoBlur.isScanning}
+								className="cursor-pointer text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+							>
+								{autoBlur.isScanning
+									? "Scanning for secrets…"
+									: "Auto-blur secrets"}
 							</DropdownMenuItem>
 							<DropdownMenuItem
 								onClick={() => {

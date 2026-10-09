@@ -117,6 +117,14 @@ export function getNativeWindowListBinaryPath(): string {
 	return path.join(app.getPath("userData"), "native-tools", "recordly-window-list");
 }
 
+export function getSensitiveTextScannerSourcePath(): string {
+	return resolveUnpackedAppPath("electron", "native", "SensitiveTextScanner.swift");
+}
+
+export function getSensitiveTextScannerBinaryPath(): string {
+	return path.join(app.getPath("userData"), "native-tools", "recordly-text-scan");
+}
+
 export function getWindowsCaptureExePath(): string {
 	return resolvePreferredWindowsNativeHelperPath("wgc-capture", "wgc-capture.exe");
 }
@@ -269,5 +277,14 @@ export async function ensureNativeCursorMonitorBinary(): Promise<string> {
 		getNativeCursorMonitorBinaryPath(),
 		"native cursor monitor helper",
 		"recordly-native-cursor-monitor",
+	);
+}
+
+export async function ensureSensitiveTextScannerBinary(): Promise<string> {
+	return ensureSwiftHelperBinary(
+		getSensitiveTextScannerSourcePath(),
+		getSensitiveTextScannerBinaryPath(),
+		"on-device text scanner",
+		"recordly-text-scan",
 	);
 }

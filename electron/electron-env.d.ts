@@ -791,6 +791,13 @@ interface Window {
 			>
 		>;
 		deleteRecordingFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+		/** Finds secrets on screen with on-device text recognition (macOS). */
+		scanSensitiveText: (
+			filePath: string,
+		) => Promise<import("./ipc/register/sensitiveText").SensitiveTextScanResult>;
+		onSensitiveTextScanProgress: (
+			callback: (progress: { done: number; total: number }) => void,
+		) => () => void;
 		getLocalMediaUrl: (
 			filePath: string,
 		) => Promise<{ success: true; url: string } | { success: false }>;

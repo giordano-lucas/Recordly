@@ -820,6 +820,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	deleteRecordingFile: (filePath: string) => {
 		return ipcRenderer.invoke("delete-recording-file", filePath);
 	},
+	scanSensitiveText: (filePath: string) => {
+		return ipcRenderer.invoke("scan-sensitive-text", filePath) as Promise<
+			import("./ipc/register/sensitiveText").SensitiveTextScanResult
+		>;
+	},
+	onSensitiveTextScanProgress: (
+		callback: (progress: { done: number; total: number }) => void,
+	) => {
+		const listener = (
+			_event: Electron.IpcRendererEvent,
+			progress: { done: number; total: number },
+		) => callback(progress);
+		ipcRenderer.on("sensitive-text-scan-progress", listener);
+		return () => ipcRenderer.removeListener("sensitive-text-scan-progress", listener);
+	},
 	getLocalMediaUrl: (filePath: string) => {
 		return ipcRenderer.invoke("get-local-media-url", filePath) as Promise<
 			{ success: true; url: string } | { success: false }

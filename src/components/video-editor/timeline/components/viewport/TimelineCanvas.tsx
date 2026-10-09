@@ -49,6 +49,7 @@ import {
 	TIMELINE_AXIS_HEIGHT_PX,
 } from "../../timelineLayout";
 import PlaybackCursor from "../playhead/PlaybackCursor";
+import RangeSelectionOverlay from "../playhead/RangeSelectionOverlay";
 
 const HINT_CLIP = "Press C to split clip";
 const HINT_ANNOTATION = "Press A to add annotation";
@@ -87,6 +88,7 @@ interface TimelineCanvasProps {
 	liveHiddenItemIds?: string[];
 	isDragging?: boolean;
 	isLoading?: boolean;
+	rangeSelection?: { startMs: number; endMs: number } | null;
 }
 
 interface LaneHoverParams {
@@ -928,6 +930,7 @@ export default function TimelineCanvas({
 	liveHiddenItemIds,
 	isDragging = false,
 	isLoading = false,
+	rangeSelection = null,
 }: TimelineCanvasProps) {
 	const { setTimelineRef, style, sidebarWidth, direction, range, valueToPixels, pixelsToValue } =
 		useTimelineContext();
@@ -1153,6 +1156,7 @@ export default function TimelineCanvas({
 			onMouseLeave={handleTimelineMouseLeave}
 		>
 			<div aria-hidden="true" style={{ height: TIMELINE_AXIS_HEIGHT_PX, flexShrink: 0 }} />
+			<RangeSelectionOverlay range={rangeSelection} clips={clipPresentation} />
 			<PlaybackCursor
 				clips={clipPresentation}
 				currentTimeMs={currentTimeMs}

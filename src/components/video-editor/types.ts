@@ -492,6 +492,9 @@ export interface AnnotationRegion {
 	blurColor?: string;
 }
 
+/** Blur strength for new blur annotations, manual or auto-detected. */
+export const DEFAULT_BLUR_INTENSITY = 20;
+
 export const DEFAULT_ANNOTATION_POSITION: AnnotationPosition = {
 	x: 50,
 	y: 50,

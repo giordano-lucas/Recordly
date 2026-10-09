@@ -6,7 +6,8 @@ import { resolveDeleteSelectionTarget } from "./utils/timelineSelectionUtils";
 interface UseTimelineKeyboardShortcutsParams {
 	isMac: boolean;
 	keyShortcuts: TimelineShortcutBindings;
-	isTimelineFocusedRef: RefObject<boolean | null>;
+	/** No longer gates shortcuts; kept so callers need not change. */
+	isTimelineFocusedRef?: RefObject<boolean | null>;
 	hasAnyZoomBlocks: boolean;
 	activateSelectAllZooms: () => void;
 	annotationCount: number;
@@ -21,6 +22,7 @@ interface UseTimelineKeyboardShortcutsParams {
 	handleAddZoom: () => void;
 	handleSplitClip: () => void;
 	handleAddAnnotation: () => void;
+	handleAddBlur?: () => void;
 	deleteSelectedKeyframe: () => void;
 	deleteSelectedZoom: () => void;
 	deleteSelectedClip: () => void;
@@ -33,7 +35,6 @@ interface UseTimelineKeyboardShortcutsParams {
 export function useTimelineKeyboardShortcuts({
 	isMac,
 	keyShortcuts,
-	isTimelineFocusedRef,
 	hasAnyZoomBlocks,
 	activateSelectAllZooms,
 	annotationCount,
@@ -48,6 +49,7 @@ export function useTimelineKeyboardShortcuts({
 	handleAddZoom,
 	handleSplitClip,
 	handleAddAnnotation,
+	handleAddBlur,
 	deleteSelectedKeyframe,
 	deleteSelectedZoom,
 	deleteSelectedClip,
@@ -110,9 +112,8 @@ export function useTimelineKeyboardShortcuts({
 				return;
 			}
 
-			if (!isTimelineFocusedRef.current) {
-				return;
-			}
+			// Editing keys work anywhere in the editor, like Final Cut Pro; text
+			// fields, dialogs and menus are excluded above.
 
 			if (matchesShortcut(e, { key: "a", ctrl: true }, isMac)) {
 				if (!hasAnyZoomBlocks) {
@@ -128,6 +129,9 @@ export function useTimelineKeyboardShortcuts({
 			if (matchesShortcut(e, keyShortcuts.splitClip, isMac)) handleSplitClip();
 			if (matchesShortcut(e, keyShortcuts.addAnnotation, isMac)) {
 				handleAddAnnotation();
+			}
+			if (keyShortcuts.addBlur && matchesShortcut(e, keyShortcuts.addBlur, isMac)) {
+				handleAddBlur?.();
 			}
 
 			if (e.key === "Tab" && annotationCount > 0) {
@@ -151,11 +155,11 @@ export function useTimelineKeyboardShortcuts({
 		deleteSelectedKeyframe,
 		deleteSelectedZoom,
 		handleAddAnnotation,
+		handleAddBlur,
 		handleAddZoom,
 		handleSplitClip,
 		hasAnyZoomBlocks,
 		isMac,
-		isTimelineFocusedRef,
 		keyShortcuts,
 		selectAllBlocksActive,
 		selectedAnnotationId,

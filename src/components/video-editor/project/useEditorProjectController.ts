@@ -74,7 +74,6 @@ type Input = {
 	captureProjectThumbnail: ReturnType<
 		typeof useProjectLibraryController
 	>["captureProjectThumbnail"];
-	remountPreview: () => void;
 };
 
 export function useEditorProjectController(input: Input) {
@@ -190,7 +189,6 @@ export function useEditorProjectController(input: Input) {
 		resolveProjectSaveDialog: lifecycle.resolveProjectSaveDialog,
 		captureProjectThumbnail: input.captureProjectThumbnail,
 		refreshProjectLibrary: input.refreshProjectLibrary,
-		remountPreview: input.remountPreview,
 	});
 	const openActions = useProjectOpenActions({
 		project: input.project,

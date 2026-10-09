@@ -10,6 +10,7 @@ import { useShortcuts } from "@/contexts/ShortcutsContext";
 import { fromFileUrl } from "../projectPersistence";
 import type {
 	AnnotationRegion,
+	AnnotationType,
 	AudioRegion,
 	CaptionCue,
 	ClipRegion,
@@ -25,6 +26,11 @@ import TimelineWrapper from "./components/wrapper/TimelineWrapper";
 import { calculateTimelineScale } from "./core/time";
 import type { ClipSequenceSpan } from "./core/timelineTypes";
 import { useTimelineAudioPeaks } from "./hooks/useTimelineAudioPeaks";
+import {
+	type RangeSelection,
+	resolveRangeSelection,
+	useFinalCutShortcuts,
+} from "./hooks/useFinalCutShortcuts";
 import { useTimelineEditorRuntime } from "./hooks/useTimelineEditorRuntime";
 import { useTimelineRange } from "./hooks/useTimelineRange";
 import {
@@ -53,11 +59,13 @@ export interface TimelineEditorProps {
 	clipRegions?: ClipRegion[];
 	onClipSplit?: (splitMs: number) => void;
 	onClipSpanChange?: (id: string, span: ClipSequenceSpan) => void;
+	/** Removes [inMs, outMs) from the storyline; returns false when nothing was removed. */
+	onRemoveRange?: (inMs: number, outMs: number) => boolean;
 	onClipDelete?: (id: string) => void;
 	selectedClipId?: string | null;
 	onSelectClip?: (id: string | null) => void;
 	annotationRegions?: AnnotationRegion[];
-	onAnnotationAdded?: (span: Span, trackIndex?: number) => void;
+	onAnnotationAdded?: (span: Span, trackIndex?: number, type?: AnnotationType) => void;
 	onAnnotationSpanChange?: (id: string, span: Span, trackIndex?: number) => void;
 	onAnnotationDelete?: (id: string) => void;
 	selectedAnnotationId?: string | null;
@@ -108,7 +116,7 @@ export interface TimelineEditorHandle {
 	addZoom: () => void;
 	suggestZooms: () => void;
 	splitClip: () => void;
-	addAnnotation: (trackIndex?: number) => void;
+	addAnnotation: (trackIndex?: number, type?: AnnotationType) => void;
 	addAudio: (trackIndex?: number) => Promise<void>;
 	keyframes: { id: string; time: number }[];
 }
@@ -137,6 +145,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 			onClipSplit,
 			onClipSpanChange,
 			onClipDelete,
+			onRemoveRange,
 			selectedClipId,
 			onSelectClip,
 			annotationRegions = [],
@@ -245,7 +254,8 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 				}
 			}
 
-			return { previewSpans, hiddenZoomIds };
+			// An array (not a Set) so the memoized timeline rows get a stable prop.
+			return { previewSpans, hiddenZoomIds: Array.from(hiddenZoomIds) };
 		}, [clipRegions, liveSpanPreviewById, zoomRegions]);
 		const { shortcuts: keyShortcuts, isMac } = useShortcuts();
 		const { peaks: sourceAudioPeaks, loading: sourceAudioLoading } = useTimelineAudioPeaks(
@@ -353,6 +363,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 			canPlaceCaptionAtMs,
 			addCaptionAtMs,
 			resolveCaptionSpanAtMs,
+			handleSplitClip,
 		} = useTimelineEditorRuntime({
 			ref,
 			videoDuration,
@@ -401,6 +412,38 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 			isMac,
 			keyShortcuts,
 			isTimelineFocusedRef,
+		});
+
+		const [rangeSelection, setRangeSelection] = useState<RangeSelection | null>(null);
+		const resolvedRangeSelection = useMemo(
+			() => resolveRangeSelection(rangeSelection, totalMs),
+			[rangeSelection, totalMs],
+		);
+
+		useFinalCutShortcuts({
+			isMac,
+			enabled: !isDragging,
+			totalMs,
+			currentTimeMs,
+			minVisibleRangeMs: timelineScale.minVisibleRangeMs,
+			range: clampedRange,
+			setRange,
+			clipRegions,
+			zoomRegions,
+			annotationRegions,
+			selectedClipId,
+			minClipDurationMs: safeMinDurationMs,
+			onSeek,
+			onBlade: handleSplitClip,
+			onClipSpanChange,
+			onDeselectAll: () => {
+				clearSelectedBlocks();
+				setSelectedKeyframeId(null);
+				setRangeSelection(null);
+			},
+			rangeSelection,
+			setRangeSelection,
+			onRemoveRange,
 		});
 
 		if (!videoDuration || videoDuration === 0) {
@@ -487,6 +530,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 							items={timelineItems}
 							videoDurationMs={totalMs}
 							currentTimeMs={currentTimeMs}
+							rangeSelection={resolvedRangeSelection}
 							onSeek={onSeek}
 							onAddZoomAtMs={addZoomAtMs}
 							canPlaceZoomAtMs={canPlaceZoomAtMs}
@@ -512,7 +556,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 							getSourceAudioTrackSettingsForClip={getSourceAudioTrackSettingsForClip}
 							showSourceAudioTrack={showSourceAudioTrack}
 							liveSpanPreviewById={liveZoomPreview.previewSpans}
-							liveHiddenItemIds={Array.from(liveZoomPreview.hiddenZoomIds)}
+							liveHiddenItemIds={liveZoomPreview.hiddenZoomIds}
 							isDragging={isDragging}
 							isLoading={isLoading}
 						/>

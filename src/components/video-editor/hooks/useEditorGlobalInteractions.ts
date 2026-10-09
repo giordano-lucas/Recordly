@@ -72,6 +72,17 @@ export function useEditorGlobalInteractions({
 				}
 				return;
 			}
+			// Final Cut Pro transport: K stops, L plays. J (reverse play) is not
+			// supported by the HTML video element.
+			const plainKey = !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
+			if (plainKey && !editable && (key === "k" || key === "l") && !event.repeat) {
+				const playback = videoPlaybackRef.current;
+				if (!playback?.video) return;
+				event.preventDefault();
+				if (key === "k") playback.pause();
+				else if (!playback.isPlaying) startPlayback();
+				return;
+			}
 			if (!matchesShortcut(event, shortcuts.playPause, isMac) || editable) return;
 			consumePlaybackKey(event);
 			if (event.repeat) return;

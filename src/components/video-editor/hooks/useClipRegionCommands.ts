@@ -4,6 +4,7 @@ import { toast } from "@/components/ui/toast";
 import { changeClipSpan } from "../clipSpanChange";
 import {
 	packClipSequence,
+	removeClipRange,
 	reorderClipSequence,
 	rippleRegionAnchors,
 	rippleRegions,
@@ -194,7 +195,40 @@ export function useClipRegionCommands({
 		[clipRegions, selectedClipId, applySequence, setSelectedClipId],
 	);
 
+	/** Removes a timeline range (I/O selection) and closes the gap. */
+	const handleRemoveRange = useCallback(
+		(inMs: number, outMs: number) => {
+			const result = removeClipRange(
+				clipRegions,
+				inMs,
+				outMs,
+				() => `clip-${nextClipIdRef.current++}`,
+			);
+			if (!result) return false;
+			const { before, after } = result;
+			setClipRegions(after);
+			setZoomRegions((current) => rippleRegions(current, before, after));
+			setAnnotationRegions((current) => rippleRegions(current, before, after));
+			setAudioRegions((current) => rippleRegionAnchors(current, before, after));
+			if (selectedClipId && !after.some((clip) => clip.id === selectedClipId)) {
+				setSelectedClipId(null);
+			}
+			return true;
+		},
+		[
+			clipRegions,
+			nextClipIdRef,
+			selectedClipId,
+			setClipRegions,
+			setZoomRegions,
+			setAnnotationRegions,
+			setAudioRegions,
+			setSelectedClipId,
+		],
+	);
+
 	return {
+		handleRemoveRange,
 		handleSelectClip,
 		handleClipSplit,
 		handleClipSpanChange,

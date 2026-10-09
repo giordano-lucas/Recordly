@@ -5,7 +5,12 @@ import { Gear as Settings2, Question as HelpCircle } from "@/components/ui/icons
 import { useEffect, useState } from "react";
 import { useScopedT } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
-import { formatBinding, SHORTCUT_ACTIONS, SHORTCUT_LABELS } from "@/lib/shortcuts";
+import {
+	FINAL_CUT_SHORTCUTS,
+	formatBinding,
+	SHORTCUT_ACTIONS,
+	SHORTCUT_LABELS,
+} from "@/lib/shortcuts";
 import { formatShortcut } from "@/utils/platformUtils";
 
 export function KeyboardShortcutsHelp() {
@@ -55,6 +60,25 @@ export function KeyboardShortcutsHelp() {
 							<Kbd>{formatBinding(shortcuts[action], isMac)}</Kbd>
 						</div>
 					))}
+
+					<div className="pt-1 border-t border-foreground/5 mt-1 space-y-1.5">
+						{FINAL_CUT_SHORTCUTS.map(({ label, display }) => (
+							<div key={label} className="flex items-center justify-between">
+								<span className="text-muted-foreground">{label}</span>
+								<Kbd>
+									{isMac
+										? display
+										: display.replace(/⌘/g, "Ctrl").replace(/⌥/g, "Alt")}
+								</Kbd>
+							</div>
+						))}
+						<div className="flex items-center justify-between">
+							<span className="text-muted-foreground">
+								{t("keyboardShortcuts.undo", "Undo / Redo")}
+							</span>
+							<Kbd>{isMac ? "⌘ + Z / ⌘ + Shift + Z" : "Ctrl + Z / Ctrl + Y"}</Kbd>
+						</div>
+					</div>
 
 					<div className="pt-1 border-t border-foreground/5 mt-1">
 						<div className="flex items-center justify-between">

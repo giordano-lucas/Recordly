@@ -2,10 +2,18 @@ import { enablePitchPreservingPlayback } from "@/lib/mediaTiming";
 import {
 	type ClipRegion,
 	findClipAtTimelineTime,
+	getClipSourceEndMs,
 	getClipSourceStartMs,
 	getTimelineDurationMs,
 	sortClipRegions,
 } from "../types";
+
+/** Source frames the decoder may already be past when a clip boundary is ticked. */
+const CONTINUOUS_SOURCE_TOLERANCE_MS = 250;
+/** A split leaves both halves within rounding of each other in source time. */
+const SPLIT_SOURCE_EPSILON_MS = 2;
+
+type SyncMode = "tick" | "seek" | "refresh";
 
 /** The playhead may stop at the timeline end; that is not a black gap. */
 export function findPreviewClipAtTimelineTime(
@@ -59,7 +67,8 @@ export function createClipPlayback({
 			onError(error);
 		});
 	};
-	const sync = (seek = false) => {
+	const sync = (mode: SyncMode = "tick") => {
+		const seek = mode === "seek";
 		const clips = getClips();
 		// Empty timeline space is skipped during playback. Clip positions and
 		// paused seeks stay intact so editing a gap never moves source footage.
@@ -96,14 +105,29 @@ export function createClipPlayback({
 						targetMs / 1000,
 					),
 				);
+				const driftMs = Math.abs(video.currentTime - target) * 1000;
+				// The decoder is already playing this footage: a split point, a
+				// speed change, or an edit applied mid-playback. Seeking would flush
+				// buffered audio and stall a frame, so only the timeline moves on.
+				const sourceContinues =
+					mode === "refresh" ||
+					(activeClip !== null &&
+						Math.abs(getClipSourceEndMs(activeClip) - getClipSourceStartMs(clip)) <=
+							SPLIT_SOURCE_EPSILON_MS);
+				const continuous =
+					playing &&
+					!seek &&
+					!video.paused &&
+					sourceContinues &&
+					driftMs <= CONTINUOUS_SOURCE_TOLERANCE_MS * clip.speed;
 				// Assigning currentTime even to its current value starts another
 				// asynchronous seek in Chromium (especially disruptive at zero).
-				if (Math.abs(video.currentTime - target) > 1e-8) {
+				if (!continuous && driftMs > 1e-5) {
 					onSourceSeek?.(playing && !seek ? "cut" : "seek");
 					video.currentTime = target;
 				}
 			}
-			if (playing && (seek || clip !== activeClip)) playSource();
+			if (playing && (seek || clip !== activeClip) && (seek || video.paused)) playSource();
 		} else {
 			playRequest++;
 			video.pause();
@@ -147,18 +171,18 @@ export function createClipPlayback({
 			playing = true;
 			onPlaying(true);
 			lastTick = performance.now();
-			sync(true);
+			sync("seek");
 			if (playing) request = requestAnimationFrame(tick);
 		},
 		pause,
 		seek: (seconds: number) => {
 			timeMs = Math.max(0, Math.min(duration(), seconds * 1000));
 			lastTick = performance.now();
-			sync(true);
+			sync("seek");
 		},
 		refresh: () => {
 			timeMs = Math.min(timeMs, duration());
-			sync(true);
+			sync("refresh");
 		},
 		dispose: pause,
 	};

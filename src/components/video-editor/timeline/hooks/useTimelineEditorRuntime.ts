@@ -3,6 +3,7 @@ import type { ForwardedRef, RefObject } from "react";
 import { useCallback, useImperativeHandle } from "react";
 import type {
 	AnnotationRegion,
+	AnnotationType,
 	AudioRegion,
 	CaptionCue,
 	ClipRegion,
@@ -12,6 +13,7 @@ import type {
 	ZoomFocus,
 	ZoomRegion,
 } from "../../types";
+import { usePlayheadClock } from "../../state/playheadClock";
 import type { ClipSequenceSpan, TimelineShortcutBindings } from "../core/timelineTypes";
 import type { TimelineEditorHandle } from "../TimelineEditor";
 import { useTimelineAudioActions } from "./actions/useTimelineAudioActions";
@@ -48,7 +50,7 @@ interface UseTimelineEditorRuntimeParams {
 	selectedClipId?: string | null;
 	onSelectClip?: (id: string | null) => void;
 	annotationRegions: AnnotationRegion[];
-	onAnnotationAdded?: (span: Span, trackIndex?: number) => void;
+	onAnnotationAdded?: (span: Span, trackIndex?: number, type?: AnnotationType) => void;
 	onAnnotationSpanChange?: (id: string, span: Span, trackIndex?: number) => void;
 	onAnnotationDelete?: (id: string) => void;
 	selectedAnnotationId?: string | null;
@@ -208,7 +210,7 @@ export function useTimelineEditorRuntime({
 		defaultRegionDurationMs,
 		canPlaceZoomAtMs,
 		addZoomAtMs,
-		handleAddZoom,
+		handleAddZoom: handleAddZoomAtCommittedTime,
 		handleSuggestZooms,
 	} = useTimelineZoomActions({
 		timeline: { videoDuration, totalMs, currentTimeMs },
@@ -228,12 +230,35 @@ export function useTimelineEditorRuntime({
 			onCaptionAdded,
 		});
 
+	// Playhead commands read the live clock: the committed time can trail playback by one tick.
+	const playheadClock = usePlayheadClock();
+	const readPlayheadMs = useCallback(
+		() => (playheadClock ? Math.round(playheadClock.get() * 1000) : currentTimeMs),
+		[playheadClock, currentTimeMs],
+	);
+
+	const handleAddZoom = useCallback(() => {
+		if (!playheadClock) {
+			handleAddZoomAtCommittedTime();
+			return;
+		}
+		if (!videoDuration || videoDuration === 0 || totalMs === 0) return;
+		addZoomAtMs(readPlayheadMs());
+	}, [
+		playheadClock,
+		handleAddZoomAtCommittedTime,
+		videoDuration,
+		totalMs,
+		addZoomAtMs,
+		readPlayheadMs,
+	]);
+
 	const handleSplitClip = useCallback(() => {
 		if (!videoDuration || videoDuration === 0 || totalMs === 0 || !onClipSplit) {
 			return;
 		}
-		onClipSplit(currentTimeMs);
-	}, [videoDuration, totalMs, currentTimeMs, onClipSplit]);
+		onClipSplit(readPlayheadMs());
+	}, [videoDuration, totalMs, readPlayheadMs, onClipSplit]);
 
 	const { handleAddAudio } = useTimelineAudioActions({
 		timeline: { videoDuration, totalMs, currentTimeMs },
@@ -242,7 +267,7 @@ export function useTimelineEditorRuntime({
 	});
 
 	const handleAddAnnotation = useCallback(
-		(trackIndex = 0) => {
+		(trackIndex = 0, type: AnnotationType = "text") => {
 			if (!videoDuration || videoDuration === 0 || totalMs === 0 || !onAnnotationAdded) {
 				return;
 			}
@@ -253,12 +278,27 @@ export function useTimelineEditorRuntime({
 			}
 
 			const latestStartPos = Math.max(0, totalMs - defaultDuration);
-			const startPos = Math.max(0, Math.min(currentTimeMs, latestStartPos));
+			const startPos = Math.max(0, Math.min(readPlayheadMs(), latestStartPos));
 			const endPos = Math.min(startPos + defaultDuration, totalMs);
-			onAnnotationAdded({ start: startPos, end: endPos }, trackIndex);
+			onAnnotationAdded({ start: startPos, end: endPos }, trackIndex, type);
 		},
-		[videoDuration, totalMs, currentTimeMs, defaultRegionDurationMs, onAnnotationAdded],
+		[videoDuration, totalMs, readPlayheadMs, defaultRegionDurationMs, onAnnotationAdded],
 	);
+
+	// A new blur goes on the lowest annotation track that is free at the playhead.
+	const nextFreeAnnotationTrack = useCallback(() => {
+		const startMs = readPlayheadMs();
+		const endMs = startMs + Math.min(defaultRegionDurationMs, totalMs);
+		for (let track = 0; ; track += 1) {
+			const busy = annotationRegions.some(
+				(region) =>
+					(region.trackIndex ?? 0) === track &&
+					region.startMs < endMs &&
+					startMs < region.endMs,
+			);
+			if (!busy) return track;
+		}
+	}, [annotationRegions, defaultRegionDurationMs, readPlayheadMs, totalMs]);
 
 	useTimelineKeyboardShortcuts({
 		isMac,
@@ -278,6 +318,7 @@ export function useTimelineEditorRuntime({
 		handleAddZoom,
 		handleSplitClip,
 		handleAddAnnotation: () => handleAddAnnotation(),
+		handleAddBlur: () => handleAddAnnotation(nextFreeAnnotationTrack(), "blur"),
 		deleteSelectedKeyframe,
 		deleteSelectedZoom,
 		deleteSelectedClip,

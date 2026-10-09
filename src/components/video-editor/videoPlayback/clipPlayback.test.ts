@@ -75,6 +75,55 @@ describe("clip timeline playback", () => {
 		advance(1);
 		expect(onTime).toHaveBeenLastCalledWith(2.801, 3.501);
 	});
+	it("plays straight through a split without seeking the source", async () => {
+		const { video, playback, onTime, onSourceSeek } = setup([
+			{ id: "a", startMs: 0, endMs: 2000, sourceStartMs: 0, speed: 1 },
+			{ id: "b", startMs: 2000, endMs: 5000, sourceStartMs: 2000, speed: 1 },
+		]);
+		playback.seek(1.9);
+		await playback.play();
+		onSourceSeek.mockClear();
+		video.play = vi.fn(async () => {});
+		// The decoder runs a frame past the split before the tick sees it.
+		video.currentTime = 2.016;
+		advance(16);
+		expect(onTime).toHaveBeenLastCalledWith(2, 2);
+		expect(video.currentTime).toBe(2.016);
+		expect(onSourceSeek).not.toHaveBeenCalled();
+		expect(video.play).not.toHaveBeenCalled();
+	});
+	it("keeps playing when a split is made under the playing playhead", async () => {
+		const clips: ClipRegion[] = [
+			{ id: "a", startMs: 0, endMs: 5000, sourceStartMs: 0, speed: 1 },
+		];
+		const { video, playback, onSourceSeek } = setup(clips);
+		await playback.play();
+		video.currentTime = 1.5;
+		advance(16);
+		onSourceSeek.mockClear();
+		video.currentTime = 1.51;
+		clips.splice(
+			0,
+			1,
+			{ id: "a", startMs: 0, endMs: 1500, sourceStartMs: 0, speed: 1 },
+			{ id: "b", startMs: 1500, endMs: 5000, sourceStartMs: 1500, speed: 1 },
+		);
+		playback.refresh();
+		expect(onSourceSeek).not.toHaveBeenCalled();
+		expect(video.currentTime).toBe(1.51);
+	});
+	it("still seeks at a real cut while playing", async () => {
+		const { video, playback, onSourceSeek } = setup([
+			{ id: "a", startMs: 0, endMs: 2000, sourceStartMs: 0, speed: 1 },
+			{ id: "b", startMs: 2000, endMs: 5000, sourceStartMs: 2100, speed: 1 },
+		]);
+		playback.seek(1.9);
+		await playback.play();
+		video.currentTime = 2.016;
+		advance(16);
+		expect(onSourceSeek).toHaveBeenLastCalledWith("cut");
+		expect(video.currentTime).toBe(2.1);
+	});
 	it("cannot simulate playback after the final clip is deleted", async () => {
 		const { video, playback, onTime } = setup([]);
 		await playback.play();

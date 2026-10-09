@@ -1,4 +1,11 @@
-import type { ComponentProps, Dispatch, RefObject, SetStateAction } from "react";
+import {
+	type ComponentProps,
+	type Dispatch,
+	type RefObject,
+	type SetStateAction,
+	useCallback,
+	useState,
+} from "react";
 import type { AspectRatio } from "@/utils/aspectRatioUtils";
 import type { useVideoEditorAudio } from "../audio/useVideoEditorAudio";
 import type { useAppearanceState } from "../state/useAppearanceState";
@@ -62,10 +69,18 @@ export function EditorVideoPreview({
 	setError,
 	handlers,
 }: Props) {
+	// Bumped only when the GPU drops the preview's WebGL context.
+	const [rendererGeneration, setRendererGeneration] = useState(0);
+	const handleRendererLost = useCallback(() => {
+		console.warn("[EditorVideoPreview] WebGL context lost; remounting the preview");
+		setIsPreviewReady(false);
+		setRendererGeneration((generation) => generation + 1);
+	}, [setIsPreviewReady]);
 	return (
 		<VideoPlayback
 			clipRegions={timeline.clipRegions}
-			key={`${videoPath || "no-video"}:${previewVersion}:inline`}
+			key={`${videoPath || "no-video"}:${previewVersion}:${rendererGeneration}:inline`}
+			onRendererLost={handleRendererLost}
 			aspectRatio={aspectRatio}
 			ref={playbackRef}
 			videoPath={videoPath || ""}

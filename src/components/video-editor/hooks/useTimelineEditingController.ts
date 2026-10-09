@@ -20,6 +20,9 @@ import { useEditorPlaybackControls } from "./useEditorPlaybackControls";
 import { useFreshRecordingAutoZoom } from "./useFreshRecordingAutoZoom";
 import { useTimelineProjection } from "./useTimelineProjection";
 import { useZoomRegionCommands } from "./useZoomRegionCommands";
+import type { PlayheadClock } from "../state/playheadClock";
+import { useTimelineClipboard } from "./useTimelineClipboard";
+import { useAutoBlurSecrets } from "./useAutoBlurSecrets";
 
 type Input = {
 	t: ReturnType<typeof useI18n>["t"];
@@ -33,6 +36,7 @@ type Input = {
 	currentSourcePath: string | null;
 	duration: number;
 	currentTime: number;
+	playheadClock?: PlayheadClock;
 	isPlaying: boolean;
 	previewVolume: number;
 	loading: boolean;
@@ -100,6 +104,7 @@ export function useTimelineEditingController(input: Input) {
 		sourceAudioFallbackRefreshKey: timeline.sourceAudioFallbackRefreshKey,
 		summarizeErrorMessage,
 		onSourceFallbackLoadError: handleSourceFallbackLoadError,
+		playheadClock: input.playheadClock,
 	});
 	const playback = useEditorPlaybackControls({
 		videoPlaybackRef: input.videoPlaybackRef,
@@ -213,6 +218,35 @@ export function useTimelineEditingController(input: Input) {
 		nextAnnotationZIndexRef: input.nextAnnotationZIndexRef,
 	});
 
+	const autoBlur = useAutoBlurSecrets({
+		sourcePath: input.currentSourcePath,
+		timeline,
+		cropRegion: input.appearance.cropRegion,
+		nextAnnotationIdRef: input.nextAnnotationIdRef,
+		nextAnnotationZIndexRef: input.nextAnnotationZIndexRef,
+	});
+
+	useTimelineClipboard({
+		isMac: input.isMac,
+		timeline,
+		playheadClock: input.playheadClock,
+		currentTime: input.currentTime,
+		timelineDurationSeconds: projection.timelineDuration,
+		nextClipIdRef: input.nextClipIdRef,
+		nextZoomIdRef: input.nextZoomIdRef,
+		nextAnnotationIdRef: input.nextAnnotationIdRef,
+		nextAnnotationZIndexRef: input.nextAnnotationZIndexRef,
+		nextAudioIdRef: input.nextAudioIdRef,
+		selectClip: clipCommands.handleSelectClip,
+		selectZoom: zoomCommands.handleSelectZoom,
+		selectAnnotation: handleSelectAnnotation,
+		selectAudio: audioCommands.handleSelectAudio,
+		deleteClip: clipCommands.handleClipDelete,
+		deleteZoom: zoomCommands.handleZoomDelete,
+		deleteAnnotation: annotationCommands.handleAnnotationDelete,
+		deleteAudio: audioCommands.handleAudioDelete,
+	});
+
 	useEditorGlobalInteractions({
 		timeline,
 		videoPlaybackRef: input.videoPlaybackRef,
@@ -233,6 +267,7 @@ export function useTimelineEditingController(input: Input) {
 		clipCommands,
 		audioCommands,
 		annotationCommands,
+		autoBlur,
 		handleSelectAnnotation,
 		handleAutoSuggestZoomsConsumed: freshZoom.handleAutoSuggestZoomsConsumed,
 	};

@@ -2,7 +2,9 @@ import type { Span } from "dnd-timeline";
 import { type Dispatch, type MutableRefObject, type SetStateAction, useCallback } from "react";
 import {
 	type AnnotationRegion,
+	type AnnotationType,
 	DEFAULT_ANNOTATION_POSITION,
+	DEFAULT_BLUR_INTENSITY,
 	DEFAULT_ANNOTATION_SIZE,
 	DEFAULT_ANNOTATION_STYLE,
 	DEFAULT_FIGURE_DATA,
@@ -29,14 +31,15 @@ export function useAnnotationRegionCommands({
 	nextAnnotationZIndexRef,
 }: UseAnnotationRegionCommandsParams) {
 	const handleAnnotationAdded = useCallback(
-		(span: Span, trackIndex = 0) => {
+		(span: Span, trackIndex = 0, type: AnnotationType = "text") => {
 			const id = `annotation-${nextAnnotationIdRef.current++}`;
 			const newRegion: AnnotationRegion = {
 				id,
 				startMs: Math.round(span.start),
 				endMs: Math.round(span.end),
-				type: "text",
-				content: "Enter text...",
+				type,
+				content: type === "text" ? "Enter text..." : "",
+				...(type === "blur" ? { blurIntensity: DEFAULT_BLUR_INTENSITY } : {}),
 				position: { ...DEFAULT_ANNOTATION_POSITION },
 				size: { ...DEFAULT_ANNOTATION_SIZE },
 				style: { ...DEFAULT_ANNOTATION_STYLE },
@@ -116,7 +119,8 @@ export function useAnnotationRegionCommands({
 						if (!region.figureData) updated.figureData = { ...DEFAULT_FIGURE_DATA };
 					} else if (type === "blur") {
 						updated.content = "";
-						if (region.blurIntensity === undefined) updated.blurIntensity = 20;
+						if (region.blurIntensity === undefined)
+							updated.blurIntensity = DEFAULT_BLUR_INTENSITY;
 					}
 					return updated;
 				}),

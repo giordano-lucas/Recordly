@@ -48,7 +48,6 @@ export function useExportRunner(input: ExportRunnerInput) {
 				captionSidecarPayload,
 				experimentalNvidiaCudaExport,
 				nvidiaCudaExportAvailable,
-				remountPreview,
 			} = inputRef.current;
 			const { shadowIntensity, padding } = appearance;
 			const { audioRegions, clipRegions, selectedClipId } = timeline;
@@ -565,7 +564,6 @@ export function useExportRunner(input: ExportRunnerInput) {
 					exporterRef.current = null;
 					if (options?.destination !== "share")
 						setShowExportDropdown(keepExportDialogOpen);
-					remountPreview();
 				}
 			}
 		},
