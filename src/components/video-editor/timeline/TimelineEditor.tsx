@@ -245,7 +245,8 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 				}
 			}
 
-			return { previewSpans, hiddenZoomIds };
+			// An array (not a Set) so the memoized timeline rows get a stable prop.
+			return { previewSpans, hiddenZoomIds: Array.from(hiddenZoomIds) };
 		}, [clipRegions, liveSpanPreviewById, zoomRegions]);
 		const { shortcuts: keyShortcuts, isMac } = useShortcuts();
 		const { peaks: sourceAudioPeaks, loading: sourceAudioLoading } = useTimelineAudioPeaks(
@@ -512,7 +513,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 							getSourceAudioTrackSettingsForClip={getSourceAudioTrackSettingsForClip}
 							showSourceAudioTrack={showSourceAudioTrack}
 							liveSpanPreviewById={liveZoomPreview.previewSpans}
-							liveHiddenItemIds={Array.from(liveZoomPreview.hiddenZoomIds)}
+							liveHiddenItemIds={liveZoomPreview.hiddenZoomIds}
 							isDragging={isDragging}
 							isLoading={isLoading}
 						/>
